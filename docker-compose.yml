@@ -1,0 +1,157 @@
+# Docker Compose pour Kendeya Backend
+# Orchestration des services: Django, PostgreSQL, Redis, Celery
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  db:
+    image: postgres:15-alpine
+    container_name: kendeya-db
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=kendeya_db
+      - POSTGRES_USER=kendeya_user
+      - POSTGRES_PASSWORD=kendeya_password
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kendeya_user -d kendeya_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kendeya-network
+
+  # Redis pour cache, Celery et Channels
+  redis:
+    image: redis:7-alpine
+    container_name: kendeya-redis
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - kendeya-network
+
+  # Application Django
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kendeya-web
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py collectstatic --noinput &&
+             gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4 --timeout 120"
+    volumes:
+      - .:/app
+      - static_volume:/app/staticfiles
+      - media_volume:/app/media
+    ports:
+      - "8000:8000"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DEBUG=False
+      - SECRET_KEY=change-me-in-production-use-env-file
+      - DATABASE_URL=postgresql://kendeya_user:kendeya_password@db:5432/kendeya_db
+      - REDIS_URL=redis://redis:6379/0
+      - ALLOWED_HOSTS=localhost,127.0.0.1
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kendeya-network
+
+  # Celery Worker pour tâches asynchrones
+  celery_worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kendeya-celery-worker
+    command: celery -A config worker -l info
+    volumes:
+      - .:/app
+      - media_volume:/app/media
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DEBUG=False
+      - SECRET_KEY=change-me-in-production-use-env-file
+      - DATABASE_URL=postgresql://kendeya_user:kendeya_password@db:5432/kendeya_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kendeya-network
+
+  # Celery Beat pour tâches périodiques
+  celery_beat:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kendeya-celery-beat
+    command: celery -A config beat -l info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DEBUG=False
+      - SECRET_KEY=change-me-in-production-use-env-file
+      - DATABASE_URL=postgresql://kendeya_user:kendeya_password@db:5432/kendeya_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kendeya-network
+
+  # Serveur WebSocket Daphne (pour Django Channels)
+  daphne:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: kendeya-daphne
+    command: daphne -b 0.0.0.0 -p 8001 config.asgi:application
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.production
+      - DEBUG=False
+      - SECRET_KEY=change-me-in-production-use-env-file
+      - DATABASE_URL=postgresql://kendeya_user:kendeya_password@db:5432/kendeya_db
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - kendeya-network
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  static_volume:
+    driver: local
+  media_volume:
+    driver: local
+
+networks:
+  kendeya-network:
+    driver: bridge

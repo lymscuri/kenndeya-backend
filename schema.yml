@@ -1,0 +1,1579 @@
+openapi: 3.0.3
+info:
+  title: Kendeya Backend API
+  version: 1.0.0
+  description: API REST pour la plateforme de gestion médicale Kendeya (Guinée)
+  contact:
+    name: Équipe Kendeya
+    email: support@kendeya.com
+  license:
+    name: Propriétaire
+paths:
+  /api/v1/auth/change-password/:
+    post:
+      operationId: auth_change_password_create
+      description: |-
+        Change le mot de passe de l'utilisateur connecté.
+
+        POST /api/v1/auth/change-password/
+        Body: {
+            "old_password": "oldpassword",
+            "new_password": "newpassword",
+            "new_password_confirm": "newpassword"
+        }
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/login/:
+    post:
+      operationId: auth_login_create
+      description: |-
+        Connexion d'un utilisateur existant.
+
+        POST /api/v1/auth/login/
+        Body: {
+            "email": "user@example.com",
+            "password": "securepassword"
+        }
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/logout/:
+    post:
+      operationId: auth_logout_create
+      description: |-
+        Déconnexion d'un utilisateur (blacklist du refresh token).
+
+        POST /api/v1/auth/logout/
+        Body: {
+            "refresh": "refresh_token_here"
+        }
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/me/:
+    get:
+      operationId: auth_me_retrieve
+      description: |-
+        Récupère les informations de l'utilisateur connecté.
+
+        GET /api/v1/auth/me/
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/profile/:
+    patch:
+      operationId: auth_profile_partial_update
+      description: |-
+        Met à jour le profil de l'utilisateur connecté.
+
+        PATCH /api/v1/auth/profile/
+        Body: {
+            "first_name": "John",
+            "last_name": "Doe",
+            "phone": "+224XXXXXXXXX"
+        }
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/register/:
+    post:
+      operationId: auth_register_create
+      description: |-
+        Inscription d'un nouvel utilisateur.
+
+        POST /api/v1/auth/register/
+        Body: {
+            "email": "user@example.com",
+            "password": "securepassword",
+            "password_confirm": "securepassword",
+            "first_name": "John",
+            "last_name": "Doe",
+            "phone": "+224XXXXXXXXX",
+            "role": "patient"
+        }
+      tags:
+      - auth
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: No response body
+  /api/v1/auth/token/refresh/:
+    post:
+      operationId: auth_token_refresh_create
+      description: |-
+        Takes a refresh type JSON web token and returns an access type JSON web
+        token if the refresh token is valid.
+      tags:
+      - auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+          application/x-www-form-urlencoded:
+            schema:
+              $ref: '#/components/schemas/TokenRefreshRequest'
+        required: true
+      security:
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefresh'
+          description: ''
+  /api/v1/dossiers/patients/:
+    get:
+      operationId: dossiers_patients_retrieve
+      description: |-
+        Liste tous les patients du médecin connecté ou crée un nouveau patient.
+
+        GET /api/v1/dossiers/patients/
+        POST /api/v1/dossiers/patients/
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: dossiers_patients_create
+      description: |-
+        Liste tous les patients du médecin connecté ou crée un nouveau patient.
+
+        GET /api/v1/dossiers/patients/
+        POST /api/v1/dossiers/patients/
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/:
+    get:
+      operationId: dossiers_patients_retrieve_2
+      description: |-
+        Récupère, modifie ou supprime un patient.
+
+        GET /api/v1/dossiers/patients/:id/
+        PATCH /api/v1/dossiers/patients/:id/
+        DELETE /api/v1/dossiers/patients/:id/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: dossiers_patients_partial_update
+      description: |-
+        Récupère, modifie ou supprime un patient.
+
+        GET /api/v1/dossiers/patients/:id/
+        PATCH /api/v1/dossiers/patients/:id/
+        DELETE /api/v1/dossiers/patients/:id/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: dossiers_patients_destroy
+      description: |-
+        Récupère, modifie ou supprime un patient.
+
+        GET /api/v1/dossiers/patients/:id/
+        PATCH /api/v1/dossiers/patients/:id/
+        DELETE /api/v1/dossiers/patients/:id/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '204':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/consultations/:
+    get:
+      operationId: dossiers_patients_consultations_retrieve
+      description: |-
+        Liste toutes les consultations d'un patient ou crée une nouvelle consultation.
+
+        GET /api/v1/dossiers/patients/:id/consultations/
+        POST /api/v1/dossiers/patients/:id/consultations/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: dossiers_patients_consultations_create
+      description: |-
+        Liste toutes les consultations d'un patient ou crée une nouvelle consultation.
+
+        GET /api/v1/dossiers/patients/:id/consultations/
+        POST /api/v1/dossiers/patients/:id/consultations/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/consultations/{consultation_id}/:
+    get:
+      operationId: dossiers_patients_consultations_retrieve_2
+      description: |-
+        Récupère ou modifie une consultation.
+
+        GET /api/v1/dossiers/patients/:id/consultations/:cid/
+        PATCH /api/v1/dossiers/patients/:id/consultations/:cid/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: dossiers_patients_consultations_partial_update
+      description: |-
+        Récupère ou modifie une consultation.
+
+        GET /api/v1/dossiers/patients/:id/consultations/:cid/
+        PATCH /api/v1/dossiers/patients/:id/consultations/:cid/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/consultations/{consultation_id}/lab-tests/:
+    post:
+      operationId: dossiers_patients_consultations_lab_tests_create
+      description: |-
+        Ajoute un examen de laboratoire à une consultation.
+
+        POST /api/v1/dossiers/patients/:id/consultations/:cid/lab-tests/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/consultations/{consultation_id}/lab-tests/{lab_test_id}/:
+    patch:
+      operationId: dossiers_patients_consultations_lab_tests_partial_update
+      description: |-
+        Met à jour un examen de laboratoire (résultats, statut, etc.).
+
+        PATCH /api/v1/dossiers/patients/:id/consultations/:cid/lab-tests/:lid/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: lab_test_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/consultations/{consultation_id}/prescriptions/:
+    post:
+      operationId: dossiers_patients_consultations_prescriptions_create
+      description: |-
+        Ajoute une prescription à une consultation.
+
+        POST /api/v1/dossiers/patients/:id/consultations/:cid/prescriptions/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/medical-record/:
+    get:
+      operationId: dossiers_patients_medical_record_retrieve
+      description: |-
+        Récupère le dossier médical d'un patient avec le QR code.
+
+        GET /api/v1/dossiers/patients/:id/medical-record/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/dossiers/patients/{patient_id}/vaccinations/:
+    get:
+      operationId: dossiers_patients_vaccinations_retrieve
+      description: |-
+        Liste toutes les vaccinations d'un patient ou ajoute une vaccination.
+
+        GET /api/v1/dossiers/patients/:id/vaccinations/
+        POST /api/v1/dossiers/patients/:id/vaccinations/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: dossiers_patients_vaccinations_create
+      description: |-
+        Liste toutes les vaccinations d'un patient ou ajoute une vaccination.
+
+        GET /api/v1/dossiers/patients/:id/vaccinations/
+        POST /api/v1/dossiers/patients/:id/vaccinations/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - dossiers
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/alerts/:
+    post:
+      operationId: emergency_alerts_create
+      description: |-
+        Crée une nouvelle alerte d'urgence.
+
+        POST /api/v1/urgences/alerts/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/alerts/{alert_id}/:
+    get:
+      operationId: emergency_alerts_retrieve
+      description: |-
+        Récupère les détails d'une alerte d'urgence.
+
+        GET /api/v1/urgences/alerts/:id/
+      parameters:
+      - in: path
+        name: alert_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/alerts/{alert_id}/assign/:
+    patch:
+      operationId: emergency_alerts_assign_partial_update
+      description: |-
+        Assigne une alerte d'urgence au secouriste connecté.
+
+        PATCH /api/v1/urgences/alerts/:id/assign/
+      parameters:
+      - in: path
+        name: alert_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/alerts/{alert_id}/status/:
+    patch:
+      operationId: emergency_alerts_status_partial_update
+      description: |-
+        Met à jour le statut d'une alerte d'urgence.
+
+        PATCH /api/v1/urgences/alerts/:id/status/
+      parameters:
+      - in: path
+        name: alert_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/alerts/list/:
+    get:
+      operationId: emergency_alerts_list_retrieve
+      description: |-
+        Liste les alertes d'urgence.
+        - Pour un patient : ses propres alertes
+        - Pour un secouriste : les alertes qui lui sont assignées
+
+        GET /api/v1/urgences/alerts/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/alerts/pending/:
+    get:
+      operationId: emergency_alerts_pending_retrieve
+      description: |-
+        Liste toutes les alertes d'urgence en attente (non assignées).
+
+        GET /api/v1/urgences/alerts/pending/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/hospitals/:
+    get:
+      operationId: emergency_hospitals_retrieve
+      description: |-
+        Liste tous les hôpitaux actifs.
+
+        GET /api/v1/urgences/hospitals/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/hospitals/{hospital_id}/:
+    get:
+      operationId: emergency_hospitals_retrieve_2
+      description: |-
+        Récupère les détails d'un hôpital.
+
+        GET /api/v1/urgences/hospitals/:id/
+      parameters:
+      - in: path
+        name: hospital_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/secourist/profile/:
+    post:
+      operationId: emergency_secourist_profile_create
+      description: |-
+        Crée un profil de secouriste pour l'utilisateur connecté.
+
+        POST /api/v1/urgences/secourist/profile/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/secourist/profile/detail/:
+    get:
+      operationId: emergency_secourist_profile_detail_retrieve
+      description: |-
+        Récupère ou modifie le profil de secouriste de l'utilisateur connecté.
+
+        GET /api/v1/urgences/secourist/profile/detail/
+        PATCH /api/v1/urgences/secourist/profile/detail/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: emergency_secourist_profile_detail_partial_update
+      description: |-
+        Récupère ou modifie le profil de secouriste de l'utilisateur connecté.
+
+        GET /api/v1/urgences/secourist/profile/detail/
+        PATCH /api/v1/urgences/secourist/profile/detail/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/emergency/secourists/:
+    get:
+      operationId: emergency_secourists_retrieve
+      description: |-
+        Liste tous les secouristes disponibles.
+
+        GET /api/v1/urgences/secourists/
+      tags:
+      - emergency
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/children/{child_id}/growth/:
+    post:
+      operationId: maternity_children_growth_create
+      description: |-
+        Ajoute un suivi de croissance pour un enfant.
+
+        POST /api/v1/maternite/children/:id/growth/
+      parameters:
+      - in: path
+        name: child_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/children/{child_id}/vaccines/:
+    post:
+      operationId: maternity_children_vaccines_create
+      description: |-
+        Ajoute un vaccin pour un enfant.
+
+        POST /api/v1/maternite/children/:id/vaccines/
+      parameters:
+      - in: path
+        name: child_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/maternity-profile/:
+    post:
+      operationId: maternity_patients_maternity_profile_create
+      description: |-
+        Crée un profil de maternité pour une patiente.
+
+        POST /api/v1/maternite/patients/:id/maternity-profile/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/maternity-profile/detail/:
+    get:
+      operationId: maternity_patients_maternity_profile_detail_retrieve
+      description: |-
+        Récupère ou modifie le profil de maternité d'une patiente.
+
+        GET /api/v1/maternite/patients/:id/maternity-profile/
+        PATCH /api/v1/maternite/patients/:id/maternity-profile/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: maternity_patients_maternity_profile_detail_partial_update
+      description: |-
+        Récupère ou modifie le profil de maternité d'une patiente.
+
+        GET /api/v1/maternite/patients/:id/maternity-profile/
+        PATCH /api/v1/maternite/patients/:id/maternity-profile/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/:
+    get:
+      operationId: maternity_patients_pregnancies_retrieve
+      description: |-
+        Liste toutes les grossesses d'une patiente ou crée une nouvelle grossesse.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/
+        POST /api/v1/maternite/patients/:id/pregnancies/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: maternity_patients_pregnancies_create
+      description: |-
+        Liste toutes les grossesses d'une patiente ou crée une nouvelle grossesse.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/
+        POST /api/v1/maternite/patients/:id/pregnancies/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/:
+    get:
+      operationId: maternity_patients_pregnancies_retrieve_2
+      description: |-
+        Récupère ou modifie une grossesse.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/
+        PATCH /api/v1/maternite/patients/:id/pregnancies/:pid/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: maternity_patients_pregnancies_partial_update
+      description: |-
+        Récupère ou modifie une grossesse.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/
+        PATCH /api/v1/maternite/patients/:id/pregnancies/:pid/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/children/:
+    get:
+      operationId: maternity_patients_pregnancies_children_retrieve
+      description: |-
+        Liste tous les enfants d'une grossesse ou enregistre un nouveau-né.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/children/
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/children/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: maternity_patients_pregnancies_children_create
+      description: |-
+        Liste tous les enfants d'une grossesse ou enregistre un nouveau-né.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/children/
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/children/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/prenatal-consultations/:
+    get:
+      operationId: maternity_patients_pregnancies_prenatal_consultations_retrieve
+      description: |-
+        Liste toutes les consultations prénatales (CPN) ou crée une nouvelle CPN.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: maternity_patients_pregnancies_prenatal_consultations_create
+      description: |-
+        Liste toutes les consultations prénatales (CPN) ou crée une nouvelle CPN.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/prenatal-consultations/{consultation_id}/:
+    get:
+      operationId: maternity_patients_pregnancies_prenatal_consultations_retrieve_2
+      description: |-
+        Récupère ou modifie une consultation prénatale.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/:cid/
+        PATCH /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/:cid/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: maternity_patients_pregnancies_prenatal_consultations_partial_update
+      description: |-
+        Récupère ou modifie une consultation prénatale.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/:cid/
+        PATCH /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-consultations/:cid/
+      parameters:
+      - in: path
+        name: consultation_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/prenatal-exams/:
+    post:
+      operationId: maternity_patients_pregnancies_prenatal_exams_create
+      description: |-
+        Ajoute un examen prénatal à une grossesse.
+
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-exams/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/prenatal-exams/{exam_id}/:
+    patch:
+      operationId: maternity_patients_pregnancies_prenatal_exams_partial_update
+      description: |-
+        Met à jour un examen prénatal (résultats, statut, etc.).
+
+        PATCH /api/v1/maternite/patients/:id/pregnancies/:pid/prenatal-exams/:eid/
+      parameters:
+      - in: path
+        name: exam_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/maternity/patients/{patient_id}/pregnancies/{pregnancy_id}/weekly-checkups/:
+    get:
+      operationId: maternity_patients_pregnancies_weekly_checkups_retrieve
+      description: |-
+        Liste toutes les consultations hebdomadaires ou crée une nouvelle consultation.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/weekly-checkups/
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/weekly-checkups/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: maternity_patients_pregnancies_weekly_checkups_create
+      description: |-
+        Liste toutes les consultations hebdomadaires ou crée une nouvelle consultation.
+
+        GET /api/v1/maternite/patients/:id/pregnancies/:pid/weekly-checkups/
+        POST /api/v1/maternite/patients/:id/pregnancies/:pid/weekly-checkups/
+      parameters:
+      - in: path
+        name: patient_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      - in: path
+        name: pregnancy_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - maternity
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reminders/sms/:
+    get:
+      operationId: reminders_sms_retrieve
+      description: |-
+        Liste tous les rappels SMS du médecin ou crée un nouveau rappel.
+
+        GET /api/v1/reminders/sms/
+        POST /api/v1/reminders/sms/
+      tags:
+      - reminders
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    post:
+      operationId: reminders_sms_create
+      description: |-
+        Liste tous les rappels SMS du médecin ou crée un nouveau rappel.
+
+        GET /api/v1/reminders/sms/
+        POST /api/v1/reminders/sms/
+      tags:
+      - reminders
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+  /api/v1/reminders/sms/{reminder_id}/:
+    get:
+      operationId: reminders_sms_retrieve_2
+      description: |-
+        Récupère, modifie ou supprime un rappel SMS.
+
+        GET /api/v1/reminders/sms/:id/
+        PATCH /api/v1/reminders/sms/:id/
+        DELETE /api/v1/reminders/sms/:id/
+      parameters:
+      - in: path
+        name: reminder_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reminders
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    patch:
+      operationId: reminders_sms_partial_update
+      description: |-
+        Récupère, modifie ou supprime un rappel SMS.
+
+        GET /api/v1/reminders/sms/:id/
+        PATCH /api/v1/reminders/sms/:id/
+        DELETE /api/v1/reminders/sms/:id/
+      parameters:
+      - in: path
+        name: reminder_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reminders
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '200':
+          description: No response body
+    delete:
+      operationId: reminders_sms_destroy
+      description: |-
+        Récupère, modifie ou supprime un rappel SMS.
+
+        GET /api/v1/reminders/sms/:id/
+        PATCH /api/v1/reminders/sms/:id/
+        DELETE /api/v1/reminders/sms/:id/
+      parameters:
+      - in: path
+        name: reminder_id
+        schema:
+          type: string
+          format: uuid
+        required: true
+      tags:
+      - reminders
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      responses:
+        '204':
+          description: No response body
+  /health/:
+    get:
+      operationId: health_retrieve
+      description: |-
+        Endpoint de santé pour vérifier que l'API est en ligne.
+        Utilisé par Railway et les outils de monitoring.
+      tags:
+      - health
+      security:
+      - jwtAuth: []
+      - bearerAuth:
+          type: http
+          scheme: bearer
+          bearerFormat: JWT
+      - {}
+      responses:
+        '200':
+          description: No response body
+components:
+  schemas:
+    TokenRefresh:
+      type: object
+      properties:
+        access:
+          type: string
+          readOnly: true
+        refresh:
+          type: string
+      required:
+      - access
+      - refresh
+    TokenRefreshRequest:
+      type: object
+      properties:
+        refresh:
+          type: string
+          minLength: 1
+      required:
+      - refresh
+  securitySchemes:
+    jwtAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+servers:
+- url: http://localhost:8000
+  description: Serveur de développement
+- url: https://api.kendeya.com
+  description: Serveur de production
+tags:
+- name: Authentification
+  description: Endpoints d'authentification et gestion des utilisateurs
+- name: Dossiers
+  description: Gestion des patients et dossiers médicaux
+- name: Maternité
+  description: Suivi de grossesse et croissance des enfants
+- name: Urgences
+  description: Alertes d'urgence et secouristes
+- name: Rappels
+  description: Rappels SMS automatiques

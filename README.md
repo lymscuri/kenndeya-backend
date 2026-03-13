@@ -132,6 +132,22 @@ celery -A config worker -l info
 celery -A config beat -l info
 ```
 
+## 📖 Documentation API
+
+L'API est documentée avec OpenAPI 3.0 (Swagger) grâce à drf-spectacular.
+
+### Accéder à la documentation
+
+- **Swagger UI** (interface interactive) : `http://localhost:8000/api/docs/`
+- **ReDoc** (documentation lisible) : `http://localhost:8000/api/redoc/`
+- **Schéma OpenAPI** (format YAML) : `http://localhost:8000/api/schema/`
+
+### Générer le schéma OpenAPI
+
+```bash
+python manage.py spectacular --file schema.yml
+```
+
 ## 📡 Endpoints API
 
 ### Authentification (`/api/v1/auth/`)
@@ -237,7 +253,98 @@ Fonctionnalités:
 
 ## 🌍 Déploiement
 
-### Railway (Recommandé)
+### Docker (Recommandé pour développement et production)
+
+#### Développement avec Docker
+
+**Note**: Un `Makefile` est disponible pour simplifier les commandes. Utilisez `make help` pour voir toutes les commandes disponibles.
+
+1. **Construire et démarrer tous les services**
+```bash
+# Avec docker-compose
+docker-compose -f docker-compose.dev.yml up --build
+
+# Ou avec Make
+make dev-up
+```
+
+2. **Accéder à l'application**
+- API: `http://localhost:8000`
+- Admin: `http://localhost:8000/admin/`
+- Documentation: `http://localhost:8000/api/docs/`
+
+3. **Créer un superutilisateur**
+```bash
+docker-compose -f docker-compose.dev.yml exec web python manage.py createsuperuser
+# Ou: make createsuperuser
+```
+
+4. **Charger les données de test**
+```bash
+docker-compose -f docker-compose.dev.yml exec web python manage.py seed_data
+# Ou: make seed
+```
+
+5. **Exécuter les tests**
+```bash
+docker-compose -f docker-compose.dev.yml exec web python manage.py test
+# Ou: make test
+```
+
+6. **Arrêter les services**
+```bash
+docker-compose -f docker-compose.dev.yml down
+# Ou: make dev-down
+```
+
+#### Production avec Docker
+
+1. **Configurer les variables d'environnement**
+```bash
+cp .env.docker .env
+# Éditer .env avec vos paramètres de production
+```
+
+2. **Construire et démarrer les services**
+```bash
+docker-compose up -d --build
+```
+
+3. **Vérifier les logs**
+```bash
+docker-compose logs -f web
+```
+
+4. **Services disponibles**
+- **web**: Application Django (port 8000)
+- **daphne**: Serveur WebSocket (port 8001)
+- **celery_worker**: Traitement des tâches asynchrones
+- **celery_beat**: Tâches périodiques
+- **db**: PostgreSQL (port 5432)
+- **redis**: Redis (port 6379)
+
+5. **Commandes utiles**
+```bash
+# Exécuter une commande Django
+docker-compose exec web python manage.py <command>
+
+# Migrations
+docker-compose exec web python manage.py migrate
+
+# Créer un superutilisateur
+docker-compose exec web python manage.py createsuperuser
+
+# Accéder au shell Django
+docker-compose exec web python manage.py shell
+
+# Redémarrer un service
+docker-compose restart web
+
+# Voir les logs d'un service
+docker-compose logs -f celery_worker
+```
+
+### Railway
 
 1. Créer un projet Railway
 2. Ajouter PostgreSQL et Redis
