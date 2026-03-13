@@ -1,0 +1,6 @@
+# Inclure toutes les dépendances de base
+-r base.txt
+
+# Dépendances supplémentaires pour la production
+# (Toutes les dépendances de production essentielles sont déjà dans base.txt)
+# Gunicorn, WhiteNoise, Sentry SDK sont déjà inclus

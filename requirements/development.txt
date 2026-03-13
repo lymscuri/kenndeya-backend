@@ -1,0 +1,19 @@
+# Inclure toutes les dépendances de base
+-r base.txt
+
+# Outils de développement et debugging
+django-debug-toolbar>=4.2.0
+ipython>=8.18.0
+
+# Tests
+pytest>=7.4.0
+pytest-django>=4.7.0
+pytest-cov>=4.1.0
+
+# Génération de données de test
+factory-boy>=3.3.0
+Faker>=20.0.0
+
+# Linting et formatage (optionnel)
+flake8>=6.1.0
+black>=23.11.0

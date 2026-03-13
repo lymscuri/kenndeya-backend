@@ -1,0 +1,31 @@
+"""
+URLs pour l'application dossiers.
+Routes de gestion des dossiers médicaux.
+"""
+
+from django.urls import path
+from . import views
+
+
+urlpatterns = [
+    # Patients
+    path('patients/', views.patient_list_create, name='patient_list_create'),
+    path('patients/<uuid:patient_id>/', views.patient_detail, name='patient_detail'),
+
+    # Dossier médical (avec QR code)
+    path('patients/<uuid:patient_id>/medical-record/', views.medical_record_detail, name='medical_record_detail'),
+
+    # Consultations
+    path('patients/<uuid:patient_id>/consultations/', views.consultation_list_create, name='consultation_list_create'),
+    path('patients/<uuid:patient_id>/consultations/<uuid:consultation_id>/', views.consultation_detail, name='consultation_detail'),
+
+    # Prescriptions
+    path('patients/<uuid:patient_id>/consultations/<uuid:consultation_id>/prescriptions/', views.prescription_create, name='prescription_create'),
+
+    # Examens de laboratoire
+    path('patients/<uuid:patient_id>/consultations/<uuid:consultation_id>/lab-tests/', views.lab_test_create, name='lab_test_create'),
+    path('patients/<uuid:patient_id>/consultations/<uuid:consultation_id>/lab-tests/<uuid:lab_test_id>/', views.lab_test_update, name='lab_test_update'),
+
+    # Vaccinations
+    path('patients/<uuid:patient_id>/vaccinations/', views.vaccination_list_create, name='vaccination_list_create'),
+]
