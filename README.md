@@ -251,114 +251,109 @@ Fonctionnalités:
 2. **process_pending_sms** - Traitement des SMS en attente (toutes les minutes)
 3. **cleanup_old_sms** - Nettoyage des vieux SMS (quotidien)
 
-## 🌍 Déploiement
+## 🌍 Déploiement sur Railway
 
-### Docker (Recommandé pour développement et production)
+### Prérequis
 
-#### Développement avec Docker
+- Compte GitHub avec le code poussé sur un repository
+- Compte Railway (gratuit pour commencer)
 
-**Note**: Un `Makefile` est disponible pour simplifier les commandes. Utilisez `make help` pour voir toutes les commandes disponibles.
+### Étapes de déploiement
 
-1. **Construire et démarrer tous les services**
+#### 1. Créer un nouveau projet Railway
+
+1. Aller sur [railway.app](https://railway.app)
+2. Cliquer sur "New Project"
+3. Sélectionner "Deploy from GitHub repo"
+4. Autoriser Railway à accéder à votre repository GitHub
+5. Sélectionner le repository `mybackend`
+
+#### 2. Ajouter les services nécessaires
+
+**PostgreSQL:**
+1. Dans votre projet Railway, cliquer sur "+ New"
+2. Sélectionner "Database" → "PostgreSQL"
+3. Railway créera automatiquement la variable `DATABASE_URL`
+
+**Redis:**
+1. Cliquer sur "+ New"
+2. Sélectionner "Database" → "Redis"
+3. Railway créera automatiquement la variable `REDIS_URL`
+
+#### 3. Configurer les variables d'environnement
+
+Dans les settings de votre service Django (web), ajouter les variables suivantes:
+
+| Variable | Valeur | Note |
+|----------|--------|------|
+| `DJANGO_SETTINGS_MODULE` | `config.settings.production` | Obligatoire |
+| `SECRET_KEY` | `%o8fjwdf+9jcc35b7q@(2e##ig@ky9x^(o8m7ir=3)5x-giq14` | Déjà configurée |
+| `DATABASE_URL` | Auto-généré par Railway | Fourni automatiquement |
+| `REDIS_URL` | Auto-généré par Railway | Fourni automatiquement |
+| `ALLOWED_HOSTS` | Votre domaine Railway (ex: `your-app.up.railway.app`) | Mettre à jour après déploiement |
+| `CORS_ALLOWED_ORIGINS` | URLs frontend (ex: `https://your-frontend.com`) | Optionnel |
+| `TWILIO_ACCOUNT_SID` | Votre SID Twilio | Optionnel (pour SMS) |
+| `TWILIO_AUTH_TOKEN` | Votre token Twilio | Optionnel (pour SMS) |
+| `TWILIO_PHONE_NUMBER` | Votre numéro Twilio | Optionnel (pour SMS) |
+
+#### 4. Déployer l'application
+
+Railway déploiera automatiquement votre application dès que vous poussez du code sur GitHub. Le fichier `railway.json` contient la configuration de build:
+
+```json
+{
+  "build": {
+    "buildCommand": "pip install -r requirements/production.txt && python manage.py collectstatic --noinput && python manage.py migrate --noinput"
+  },
+  "deploy": {
+    "startCommand": "gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 4"
+  }
+}
+```
+
+#### 5. Vérifier le déploiement
+
+1. Aller dans l'onglet "Deployments" de votre service
+2. Vérifier que le build s'est terminé sans erreur
+3. Accéder à l'URL fournie par Railway (ex: `https://your-app.up.railway.app`)
+4. Tester les endpoints:
+   - `https://your-app.up.railway.app/health/` - Doit retourner `{"status": "healthy"}`
+   - `https://your-app.up.railway.app/api/docs/` - Documentation Swagger
+   - `https://your-app.up.railway.app/admin/` - Interface admin
+
+#### 6. Créer un superutilisateur
+
+Utiliser le Railway CLI ou l'interface web:
+
 ```bash
-# Avec docker-compose
-docker-compose -f docker-compose.dev.yml up --build
+# Avec Railway CLI
+railway run python manage.py createsuperuser
 
-# Ou avec Make
-make dev-up
+# Ou via l'interface web Railway
+# Settings → Variables → + New Variable
+# DJANGO_SUPERUSER_EMAIL=admin@kendeya.com
+# DJANGO_SUPERUSER_PASSWORD=VotreMotDePasse
 ```
 
-2. **Accéder à l'application**
-- API: `http://localhost:8000`
-- Admin: `http://localhost:8000/admin/`
-- Documentation: `http://localhost:8000/api/docs/`
+#### 7. Configurer les workers Celery (optionnel)
 
-3. **Créer un superutilisateur**
+Pour les tâches asynchrones, créer un nouveau service dans Railway:
+
+1. Dupliquer le service web
+2. Changer la commande de démarrage en: `celery -A config worker -l info`
+3. Pour Celery Beat, créer un autre service avec: `celery -A config beat -l info`
+
+### Mise à jour du code
+
+Pour déployer de nouvelles modifications:
+
 ```bash
-docker-compose -f docker-compose.dev.yml exec web python manage.py createsuperuser
-# Ou: make createsuperuser
+git add .
+git commit -m "Votre message"
+git push origin main
 ```
 
-4. **Charger les données de test**
-```bash
-docker-compose -f docker-compose.dev.yml exec web python manage.py seed_data
-# Ou: make seed
-```
-
-5. **Exécuter les tests**
-```bash
-docker-compose -f docker-compose.dev.yml exec web python manage.py test
-# Ou: make test
-```
-
-6. **Arrêter les services**
-```bash
-docker-compose -f docker-compose.dev.yml down
-# Ou: make dev-down
-```
-
-#### Production avec Docker
-
-1. **Configurer les variables d'environnement**
-```bash
-cp .env.docker .env
-# Éditer .env avec vos paramètres de production
-```
-
-2. **Construire et démarrer les services**
-```bash
-docker-compose up -d --build
-```
-
-3. **Vérifier les logs**
-```bash
-docker-compose logs -f web
-```
-
-4. **Services disponibles**
-- **web**: Application Django (port 8000)
-- **daphne**: Serveur WebSocket (port 8001)
-- **celery_worker**: Traitement des tâches asynchrones
-- **celery_beat**: Tâches périodiques
-- **db**: PostgreSQL (port 5432)
-- **redis**: Redis (port 6379)
-
-5. **Commandes utiles**
-```bash
-# Exécuter une commande Django
-docker-compose exec web python manage.py <command>
-
-# Migrations
-docker-compose exec web python manage.py migrate
-
-# Créer un superutilisateur
-docker-compose exec web python manage.py createsuperuser
-
-# Accéder au shell Django
-docker-compose exec web python manage.py shell
-
-# Redémarrer un service
-docker-compose restart web
-
-# Voir les logs d'un service
-docker-compose logs -f celery_worker
-```
-
-### Railway
-
-1. Créer un projet Railway
-2. Ajouter PostgreSQL et Redis
-3. Configurer les variables d'environnement
-4. Déployer depuis GitHub
-
-Variables d'environnement requises:
-```
-DJANGO_SETTINGS_MODULE=config.settings.production
-SECRET_KEY=<votre-secret-key>
-DATABASE_URL=<fourni-par-railway>
-REDIS_URL=<fourni-par-railway>
-ALLOWED_HOSTS=<votre-domaine>
-```
+Railway redéploiera automatiquement l'application.
 
 ## 📄 License
 
