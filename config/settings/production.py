@@ -8,16 +8,16 @@ import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
 # MODE DEBUG DÉSACTIVÉ
-DEBUG = False
+DEBUG = env.bool('DEBUG', default=False)
 
 # HOSTS AUTORISÉS (définis dans les variables d'environnement)
 # Exemple : ALLOWED_HOSTS=kendeya.railway.app,api.kendeya.com
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS')
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 
 # SÉCURITÉ RENFORCÉE
 
-# HTTPS obligatoire
-SECURE_SSL_REDIRECT = True
+# HTTPS géré par Railway
+SECURE_SSL_REDIRECT = env.bool('SECURE_SSL_REDIRECT', default=False)
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
 
 # Cookies sécurisés
