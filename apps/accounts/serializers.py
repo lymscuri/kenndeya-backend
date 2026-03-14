@@ -24,6 +24,7 @@ class RegisterSerializer(serializers.ModelSerializer):
         required=True,
         style={'input_type': 'password'}
     )
+    role = serializers.ChoiceField(choices=['medecin', 'patient'])
 
     class Meta:
         model = User
