@@ -4,6 +4,10 @@
 set -e
 
 echo "=== Starting Kendeya Backend ==="
+
+# Créer le répertoire staticfiles s'il n'existe pas
+mkdir -p /app/staticfiles
+
 echo "Running migrations..."
 python manage.py migrate --noinput || {
     echo "Migration failed!"
