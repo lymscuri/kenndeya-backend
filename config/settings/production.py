@@ -17,6 +17,12 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['*'])
 if 'healthcheck.railway.app' not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append('healthcheck.railway.app')
 
+# CSRF pour l'admin en production
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[
+    'https://kenndeya-backend-production.up.railway.app',
+    'https://*.up.railway.app',
+])
+
 # SÉCURITÉ RENFORCÉE
 
 # HTTPS géré par Railway
@@ -63,11 +69,23 @@ CACHES = {
 
 # FICHIERS STATIQUES (WhiteNoise pour servir les fichiers statiques)
 MIDDLEWARE.insert(1, 'whitenoise.middleware.WhiteNoiseMiddleware')
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "whitenoise.storage.CompressedStaticFilesStorage",
+    },
+}
 
-# LOGGING (plus détaillé en production)
-LOGGING['handlers']['console']['level'] = 'WARNING'
-LOGGING['root']['level'] = 'WARNING'
+# LOGGING (plus détaillé en production pour déboguer)
+LOGGING['handlers']['console']['level'] = 'INFO'
+LOGGING['root']['level'] = 'INFO'
+LOGGING['loggers']['django'] = {
+    'handlers': ['console'],
+    'level': 'INFO',
+    'propagate': False,
+}
 
 # MONITORING SENTRY (si configuré)
 SENTRY_DSN = env('SENTRY_DSN', default='')

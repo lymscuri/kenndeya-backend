@@ -5,19 +5,24 @@ set -e
 
 echo "=== Starting Kendeya Backend ==="
 
-# Créer le répertoire staticfiles s'il n'existe pas
+# Créer les répertoires nécessaires
 mkdir -p /app/staticfiles
+mkdir -p /app/media
 
 echo "Running migrations..."
 python manage.py migrate --noinput || {
-    echo "Migration failed!"
+    echo "ERROR: Migration failed!"
     exit 1
 }
 
 echo "Collecting static files..."
-python manage.py collectstatic --noinput --clear || {
-    echo "Warning: collectstatic failed, continuing..."
+python manage.py collectstatic --noinput || {
+    echo "ERROR: collectstatic failed!"
+    exit 1
 }
+
+echo "Static files collected successfully in /app/staticfiles/"
+ls -la /app/staticfiles/ | head -10
 
 echo "Starting Gunicorn..."
 exec gunicorn config.wsgi:application \
@@ -26,4 +31,5 @@ exec gunicorn config.wsgi:application \
     --timeout 120 \
     --access-logfile - \
     --error-logfile - \
-    --log-level info
+    --log-level info \
+    --capture-output
