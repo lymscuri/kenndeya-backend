@@ -17,7 +17,7 @@ class IsDoctor(BasePermission):
             request.user and
             request.user.is_authenticated and
             hasattr(request.user, 'role') and
-            request.user.role == 'doctor'
+            request.user.role == 'medecin'
         )
 
 
@@ -68,5 +68,5 @@ class IsDoctorOrReadOnly(BasePermission):
         # Méthodes d'écriture réservées aux médecins
         return (
             hasattr(request.user, 'role') and
-            request.user.role == 'doctor'
+            request.user.role == 'medecin'
         )
