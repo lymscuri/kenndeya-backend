@@ -45,6 +45,7 @@ def maternity_patient_list_create(request):
             first_name=data.get('first_name', ''),
             last_name=data.get('last_name', ''),
             phone=data.get('phone', ''),
+            date_of_birth=data.get('date_of_birth', '1990-01-01'),
         )
         return Response({
             'success': True,
