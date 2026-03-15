@@ -40,7 +40,6 @@ def maternity_patient_list_create(request):
     if request.method == 'POST':
         from datetime import date
         data = request.data
-        year = date.today().year
         patient = Patient.objects.create(
             doctor=request.user,
             first_name=data.get('first_name', ''),
@@ -69,8 +68,6 @@ def maternity_patient_detail_simple(request, patient_id):
         'success': True,
         'data': {
             'id': str(patient.id),
-            'dossier_number': patient.dossier_number,
-            'identity': patient.identity,
         }
     })
 
