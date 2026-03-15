@@ -25,6 +25,62 @@ from .serializers import (
 
 
 # ========== MATERNITY PATIENTS ==========
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def maternity_patient_list_create(request):
+    """
+    GET  /api/v1/maternity/patients/ — Liste patientes maternité
+    POST /api/v1/maternity/patients/ — Créer patiente maternité
+    """
+    if request.method == 'GET':
+        # Retourner les patientes liées au soignant connecté
+        from apps.dossiers.models import Patient
+        patients = Patient.objects.filter(doctor=request.user)
+        return Response({
+            'success': True,
+            'count': patients.count(),
+            'results': []  # À enrichir avec les données maternité
+        })
+
+    # POST — créer une nouvelle patiente maternité
+    if request.method == 'POST':
+        data = request.data
+        # Créer d'abord un patient dans le dossier
+        from apps.dossiers.models import Patient
+        from core.utils import generate_dossier_number
+        patient = Patient.objects.create(
+            doctor=request.user,
+            dossier_number=generate_dossier_number(),
+            identity={
+                'prenom': data.get('first_name', ''),
+                'nom': data.get('last_name', ''),
+            }
+        )
+        return Response({
+            'success': True,
+            'message': 'Patiente maternité créée.',
+            'data': {
+                'id': str(patient.id),
+                'dossier_number': patient.dossier_number,
+            }
+        }, status=201)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def maternity_patient_detail_simple(request, patient_id):
+    """GET /api/v1/maternity/patients/:id/"""
+    from apps.dossiers.models import Patient
+    from django.shortcuts import get_object_or_404
+    patient = get_object_or_404(Patient, id=patient_id)
+    return Response({
+        'success': True,
+        'data': {
+            'id': str(patient.id),
+            'dossier_number': patient.dossier_number,
+            'identity': patient.identity,
+        }
+    })
 
 @api_view(['POST'])
 @permission_classes([IsDoctor])

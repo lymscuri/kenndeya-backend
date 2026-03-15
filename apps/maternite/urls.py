@@ -8,6 +8,9 @@ from . import views
 
 
 urlpatterns = [
+    # Liste et création des patientes maternité
+    path('patients/', views.maternity_patient_list_create, name='maternity_patient_list_create'),
+    path('patients/<uuid:patient_id>/', views.maternity_patient_detail_simple, name='maternity_patient_detail_simple'),
     # Maternity Profile
     path('patients/<uuid:patient_id>/maternity-profile/', views.maternity_patient_create, name='maternity_patient_create'),
     path('patients/<uuid:patient_id>/maternity-profile/detail/', views.maternity_patient_detail, name='maternity_patient_detail'),
