@@ -41,25 +41,19 @@ def maternity_patient_list_create(request):
         from datetime import date
         data = request.data
         year = date.today().year
-        count = Patient.objects.filter(
-            dossier_number__startswith=f"KDY-{year}-"
-        ).count() + 1
-        dossier_number = f"KDY-{year}-{count:05d}"
-
         patient = Patient.objects.create(
             doctor=request.user,
-            dossier_number=dossier_number,
-            identity={
-                'prenom': data.get('first_name', ''),
-                'nom': data.get('last_name', ''),
-            }
+            first_name=data.get('first_name', ''),
+            last_name=data.get('last_name', ''),
+            phone=data.get('phone', ''),
         )
         return Response({
             'success': True,
             'message': 'Patiente maternité créée.',
             'data': {
                 'id': str(patient.id),
-                'dossier_number': patient.dossier_number,
+                'first_name': patient.first_name,
+                'last_name': patient.last_name,
             }
         }, status=201)
 
