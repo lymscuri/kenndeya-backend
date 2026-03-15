@@ -29,29 +29,26 @@ from .serializers import (
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def maternity_patient_list_create(request):
-    """
-    GET  /api/v1/maternity/patients/ — Liste patientes maternité
-    POST /api/v1/maternity/patients/ — Créer patiente maternité
-    """
     if request.method == 'GET':
-        # Retourner les patientes liées au soignant connecté
-        from apps.dossiers.models import Patient
         patients = Patient.objects.filter(doctor=request.user)
         return Response({
             'success': True,
             'count': patients.count(),
-            'results': []  # À enrichir avec les données maternité
+            'results': []
         })
 
-    # POST — créer une nouvelle patiente maternité
     if request.method == 'POST':
+        from datetime import date
         data = request.data
-        # Créer d'abord un patient dans le dossier
-        from apps.dossiers.models import Patient
-        from core.utils import generate_dossier_number
+        year = date.today().year
+        count = Patient.objects.filter(
+            dossier_number__startswith=f"KDY-{year}-"
+        ).count() + 1
+        dossier_number = f"KDY-{year}-{count:05d}"
+
         patient = Patient.objects.create(
             doctor=request.user,
-            dossier_number=generate_dossier_number(),
+            dossier_number=dossier_number,
             identity={
                 'prenom': data.get('first_name', ''),
                 'nom': data.get('last_name', ''),
