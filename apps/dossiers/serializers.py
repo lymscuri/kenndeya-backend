@@ -11,7 +11,7 @@ class PatientListSerializer(serializers.ModelSerializer):
     """
     Serializer pour la liste des patients (version allégée).
     """
-    full_name = serializers.CharField(source='full_name', read_only=True)
+    full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(source='age', read_only=True)
 
     class Meta:
@@ -27,7 +27,7 @@ class PatientSerializer(serializers.ModelSerializer):
     """
     Serializer complet pour les patients.
     """
-    full_name = serializers.CharField(source='full_name', read_only=True)
+    full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(source='age', read_only=True)
     doctor_name = serializers.CharField(source='doctor.get_full_name', read_only=True)
 
