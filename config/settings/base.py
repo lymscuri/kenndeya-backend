@@ -254,6 +254,14 @@ CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 TWILIO_ACCOUNT_SID = env('TWILIO_ACCOUNT_SID', default='')
 TWILIO_AUTH_TOKEN = env('TWILIO_AUTH_TOKEN', default='')
 TWILIO_PHONE_NUMBER = env('TWILIO_PHONE_NUMBER', default='')
+from celery.schedules import crontab
+
+CELERY_BEAT_SCHEDULE = {
+    'send-pending-reminders-every-hour': {
+        'task': 'apps.reminders.tasks.send_pending_reminders',
+        'schedule': crontab(minute=0),
+    },
+}
 
 # LOGGING
 LOGGING = {
