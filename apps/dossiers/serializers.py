@@ -193,3 +193,24 @@ class VaccinationSerializer(serializers.ModelSerializer):
                     "La date de la prochaine dose doit être postérieure à la date d'administration."
                 )
         return value
+
+
+class MyMedicalRecordSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour le dossier médical complet d'un patient.
+    Retourne toutes les informations : identité, consultations, vaccinations, etc.
+    """
+    consultations = ConsultationListSerializer(many=True, read_only=True)
+    vaccinations = VaccinationSerializer(many=True, read_only=True)
+    age = serializers.IntegerField(read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = [
+            'id', 'first_name', 'last_name', 'date_of_birth', 'age', 'gender',
+            'phone', 'email', 'blood_type', 'allergies', 'chronic_conditions',
+            'address', 'city', 'consultations', 'vaccinations', 'created_at', 'updated_at'
+        ]
+        read_only_fields = [
+            'id', 'created_at', 'updated_at'
+        ]

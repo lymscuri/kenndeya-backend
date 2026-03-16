@@ -20,7 +20,8 @@ from .serializers import (
     ConsultationSerializer,
     PrescriptionSerializer,
     LabTestSerializer,
-    VaccinationSerializer
+    VaccinationSerializer,
+    MyMedicalRecordSerializer
 )
 
 
@@ -377,3 +378,45 @@ def vaccination_list_create(request, patient_id):
                 'details': serializer.errors
             }
         }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ========== MY MEDICAL RECORD ==========
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_medical_record(request):
+    """
+    Retourne le dossier médical complet du patient connecté.
+    Accessible aux patients et médecins.
+
+    GET /api/v1/dossiers/my-record/
+    """
+    # Chercher le patient dont l'email correspond à l'utilisateur connecté
+    try:
+        patient = Patient.objects.prefetch_related(
+            'consultations',
+            'consultations__doctor',
+            'vaccinations',
+            'vaccinations__doctor'
+        ).get(email=request.user.email)
+    except Patient.DoesNotExist:
+        return Response({
+            'success': False,
+            'error': {
+                'code': 'not_found',
+                'message': 'Aucun dossier médical trouvé pour cet utilisateur.',
+                'details': {
+                    'email': request.user.email,
+                    'suggestion': 'Veuillez contacter votre médecin pour créer votre dossier médical.'
+                }
+            }
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    # Sérialiser le dossier complet
+    serializer = MyMedicalRecordSerializer(patient)
+
+    return Response({
+        'success': True,
+        'message': 'Dossier médical récupéré avec succès.',
+        'data': serializer.data
+    }, status=status.HTTP_200_OK)

@@ -8,6 +8,9 @@ from . import views
 
 
 urlpatterns = [
+    # Mon dossier médical (patient connecté)
+    path('my-record/', views.my_medical_record, name='my_medical_record'),
+
     # Patients
     path('patients/', views.patient_list_create, name='patient_list_create'),
     path('patients/<uuid:patient_id>/', views.patient_detail, name='patient_detail'),
