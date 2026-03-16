@@ -142,14 +142,19 @@ def create_vaccination_reminder(request):
     scheduled   = request.data.get('scheduled_at', '')
     patient_id  = request.data.get('patient_id')
 
-    if not all([child_name, vaccine, phone, scheduled, patient_id]):
+    if not all([phone, scheduled]):
         return Response({
             'success': False,
-            'error': {'message': 'Champs obligatoires : child_name, vaccine_name, phone_number, scheduled_at, patient_id'}
+            'error': {'message': 'Champs obligatoires : phone_number, scheduled_at'}
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    from apps.accounts.models import User
-    patient = get_object_or_404(User, id=patient_id)
+    patient = request.user
+    if patient_id:
+        try:
+            from apps.accounts.models import User
+            patient = User.objects.get(id=patient_id)
+        except Exception:
+            pass
 
     message = build_vaccination_message(child_name, vaccine, target_age)
 
@@ -185,14 +190,19 @@ def create_prenatal_reminder(request):
     scheduled    = request.data.get('scheduled_at', '')
     patient_id   = request.data.get('patient_id')
 
-    if not all([patient_name, week, phone, scheduled, patient_id]):
+    if not all([phone, scheduled]):
         return Response({
             'success': False,
-            'error': {'message': 'Champs obligatoires manquants.'}
+            'error': {'message': 'Champs obligatoires : phone_number, scheduled_at'}
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    from apps.accounts.models import User
-    patient = get_object_or_404(User, id=patient_id)
+    patient = request.user
+    if patient_id:
+        try:
+            from apps.accounts.models import User
+            patient = User.objects.get(id=patient_id)
+        except Exception:
+            pass
 
     message = build_prenatal_message(patient_name, week, date_str)
 
@@ -227,14 +237,19 @@ def create_appointment_reminder(request):
     scheduled    = request.data.get('scheduled_at', '')
     patient_id   = request.data.get('patient_id')
 
-    if not all([patient_name, phone, scheduled, patient_id]):
+    if not all([phone, scheduled]):
         return Response({
             'success': False,
-            'error': {'message': 'Champs obligatoires manquants.'}
+            'error': {'message': 'Champs obligatoires : phone_number, scheduled_at'}
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    from apps.accounts.models import User
-    patient = get_object_or_404(User, id=patient_id)
+    patient = request.user
+    if patient_id:
+        try:
+            from apps.accounts.models import User
+            patient = User.objects.get(id=patient_id)
+        except Exception:
+            pass
 
     doctor_name = request.user.get_full_name()
     message = build_appointment_message(patient_name, doctor_name, date_str)
