@@ -51,6 +51,7 @@ def api_root(request):
             'maternite': request.build_absolute_uri('/api/v1/maternity/'),
             'urgences': request.build_absolute_uri('/api/v1/emergency/'),
             'rappels_sms': request.build_absolute_uri('/api/v1/reminders/'),
+            'notifications': request.build_absolute_uri('/api/v1/notifications/'),
         },
         'admin': request.build_absolute_uri('/admin/'),
         'health': request.build_absolute_uri('/health/'),
@@ -79,6 +80,7 @@ urlpatterns = [
     path('api/v1/maternity/', include('apps.maternite.urls')),
     path('api/v1/emergency/', include('apps.urgences.urls')),
     path('api/v1/reminders/', include('apps.reminders.urls')),
+    path('api/v1/notifications/', include('apps.notifications.urls')),
 ]
 
 # Servir les fichiers médias en développement

@@ -2,11 +2,12 @@
 apps/reminders/tasks.py — Tâches Celery pour Kendeya
 Envoi automatique des rappels SMS planifiés.
 """
- 
+
 import logging
 from celery import shared_task
 from django.utils import timezone
- 
+from apps.notifications.services import push_service
+
 logger = logging.getLogger(__name__)
  
  
@@ -46,6 +47,15 @@ def send_pending_reminders(self):
             reminder.save(update_fields=['status', 'sent_at', 'updated_at'])
             sent_count += 1
             logger.info(f'[Reminders] SMS envoyé — ID: {reminder.id}')
+
+            # Envoyer aussi une notification push si le patient existe
+            if reminder.patient:
+                push_service.send_to_users(
+                    user_ids=[reminder.patient.id],
+                    title="💊 Rappel Kendeya",
+                    body=reminder.message[:100],
+                    data={"type": "reminder", "reminderId": str(reminder.id)}
+                )
         else:
             reminder.status        = 'failed'
             reminder.error_message = result.get('error', 'Erreur inconnue')
@@ -85,6 +95,15 @@ def send_single_reminder(reminder_id: str):
         reminder.sent_at = timezone.now()
         reminder.save(update_fields=['status', 'sent_at', 'updated_at'])
         logger.info(f'[Reminders] SMS envoyé manuellement — ID: {reminder_id}')
+
+        # Envoyer aussi une notification push si le patient existe
+        if reminder.patient:
+            push_service.send_to_users(
+                user_ids=[reminder.patient.id],
+                title="💊 Rappel Kendeya",
+                body=reminder.message[:100],
+                data={"type": "reminder", "reminderId": str(reminder_id)}
+            )
     else:
         reminder.status        = 'failed'
         reminder.error_message = result.get('error', 'Erreur inconnue')

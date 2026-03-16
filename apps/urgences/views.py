@@ -14,6 +14,7 @@ from django.utils import timezone
 from core.permissions import IsSecourist
 from .models import Secourist, Hospital, EmergencyAlert
 from .serializers import SecouristSerializer, HospitalSerializer, EmergencyAlertSerializer
+from apps.notifications.services import push_service
 
 
 # ========== SECOURIST PROFILES ==========
@@ -176,6 +177,15 @@ def emergency_alert_create(request):
 
     if serializer.is_valid():
         alert = serializer.save(patient=request.user)
+
+        # Envoyer une notification push aux médecins et secouristes
+        description = alert.description[:50] if alert.description else "Urgence signalée"
+        push_service.send_to_roles(
+            roles=['medecin', 'secourist'],
+            title="🚨 Alerte SOS",
+            body=f"Urgence signalée : {description}",
+            data={"type": "emergency", "alertId": str(alert.id)}
+        )
 
         # TODO: Déclencher la notification WebSocket aux secouristes disponibles
 
