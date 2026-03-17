@@ -49,12 +49,18 @@ def maternity_patient_list_create(request):
             last_name=data.get('last_name', ''),
             phone=data.get('phone', ''),
             date_of_birth=data.get('date_of_birth', '1990-01-01'),
+            email=data.get('linked_email', ''),
+        )
+        # Créer aussi le profil MaternityPatient lié
+        maternity = MaternityPatient.objects.create(
+            patient=patient,
         )
         return Response({
             'success': True,
             'message': 'Patiente maternité créée.',
             'data': {
                 'id': str(patient.id),
+                'maternity_id': str(maternity.id),
                 'first_name': patient.first_name,
                 'last_name': patient.last_name,
             }
