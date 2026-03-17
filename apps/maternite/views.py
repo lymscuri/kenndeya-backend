@@ -31,11 +31,13 @@ from .serializers import (
 @permission_classes([IsAuthenticated])
 def maternity_patient_list_create(request):
     if request.method == 'GET':
+        from apps.dossiers.serializers import PatientListSerializer
         patients = Patient.objects.filter(doctor=request.user)
+        serializer = PatientListSerializer(patients, many=True)
         return Response({
             'success': True,
             'count': patients.count(),
-            'results': []
+            'results': serializer.data
         })
 
     if request.method == 'POST':
