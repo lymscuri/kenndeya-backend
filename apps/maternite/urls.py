@@ -8,6 +8,9 @@ from . import views
 
 
 urlpatterns = [
+    # Mon dossier maternité (patiente connectée)
+    path('my-record/', views.my_maternity_record, name='my_maternity_record'),
+
     # Liste et création des patientes maternité
     path('patients/', views.maternity_patient_list_create, name='maternity_patient_list_create'),
     path('patients/<uuid:patient_id>/', views.maternity_patient_detail_simple, name='maternity_patient_detail_simple'),

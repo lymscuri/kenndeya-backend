@@ -21,7 +21,8 @@ from .serializers import (
     MaternityPatientSerializer, PregnancySerializer,
     WeeklyCheckupSerializer, PrenatalConsultationSerializer,
     PrenatalExamSerializer, ChildSerializer,
-    ChildGrowthSerializer, ChildVaccineSerializer
+    ChildGrowthSerializer, ChildVaccineSerializer,
+    MyMaternityRecordSerializer
 )
 
 
@@ -575,3 +576,50 @@ def child_vaccine_create(request, child_id):
             'details': serializer.errors
         }
     }, status=status.HTTP_400_BAD_REQUEST)
+
+
+# ========== MY MATERNITY RECORD ==========
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def my_maternity_record(request):
+    """
+    Retourne le dossier maternité complet de la patiente connectée.
+    Accessible aux patientes et médecins.
+
+    GET /api/v1/maternity/my-record/
+    """
+    # Chercher la patiente maternité dont l'email du patient correspond à l'utilisateur connecté
+    maternity_patient = MaternityPatient.objects.filter(
+        patient__email=request.user.email
+    ).prefetch_related(
+        'pregnancies',
+        'pregnancies__prenatal_consultations',
+        'pregnancies__prenatal_consultations__doctor',
+        'pregnancies__weekly_checkups',
+        'pregnancies__weekly_checkups__doctor',
+        'pregnancies__children',
+        'patient'
+    ).first()
+
+    if not maternity_patient:
+        return Response({
+            'success': False,
+            'error': {
+                'code': 'not_found',
+                'message': 'Aucun dossier maternité trouvé pour cet utilisateur.',
+                'details': {
+                    'email': request.user.email,
+                    'suggestion': 'Veuillez contacter votre médecin pour créer votre dossier maternité.'
+                }
+            }
+        }, status=status.HTTP_404_NOT_FOUND)
+
+    # Sérialiser le dossier complet
+    serializer = MyMaternityRecordSerializer(maternity_patient)
+
+    return Response({
+        'success': True,
+        'message': 'Dossier maternité récupéré avec succès.',
+        'data': serializer.data
+    }, status=status.HTTP_200_OK)
