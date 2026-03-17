@@ -7,33 +7,6 @@ from rest_framework import serializers
 from .models import Patient, MedicalRecord, Consultation, Prescription, LabTest, Vaccination
 
 
-class PatientListSerializer(serializers.ModelSerializer):
-    """
-    Serializer pour la liste des patients (version allégée).
-    Inclut les consultations et vaccinations pour la synchronisation frontend.
-    """
-    full_name = serializers.CharField(read_only=True)
-    age = serializers.IntegerField(read_only=True)
-    dossier_number = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Patient
-        fields = [
-            'id', 'full_name', 'first_name', 'last_name', 'age',
-            'date_of_birth', 'gender', 'phone', 'email', 'dossier_number',
-            'blood_type', 'allergies', 'chronic_conditions',
-            'address', 'city', 'created_at', 'doctor'
-        ]
-        read_only_fields = ['id', 'created_at']
-
-    def get_dossier_number(self, obj):
-        """Retourne le numéro de dossier depuis MedicalRecord."""
-        try:
-            return obj.medical_record.record_number
-        except Exception:
-            return None
-
-
 class MedicalRecordSerializer(serializers.ModelSerializer):
     """
     Serializer pour les dossiers médicaux.
@@ -192,6 +165,36 @@ class VaccinationSerializer(serializers.ModelSerializer):
                     "La date de la prochaine dose doit être postérieure à la date d'administration."
                 )
         return value
+
+
+class PatientListSerializer(serializers.ModelSerializer):
+    """
+    Serializer pour la liste des patients (version allégée).
+    Inclut les consultations et vaccinations pour la synchronisation frontend.
+    """
+    full_name = serializers.CharField(read_only=True)
+    age = serializers.IntegerField(read_only=True)
+    dossier_number = serializers.SerializerMethodField()
+    consultations = ConsultationListSerializer(many=True, read_only=True)
+    vaccinations = VaccinationSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = Patient
+        fields = [
+            'id', 'full_name', 'first_name', 'last_name', 'age',
+            'date_of_birth', 'gender', 'phone', 'email', 'dossier_number',
+            'blood_type', 'allergies', 'chronic_conditions',
+            'address', 'city', 'consultations', 'vaccinations',
+            'created_at', 'doctor'
+        ]
+        read_only_fields = ['id', 'created_at']
+
+    def get_dossier_number(self, obj):
+        """Retourne le numéro de dossier depuis MedicalRecord."""
+        try:
+            return obj.medical_record.record_number
+        except Exception:
+            return None
 
 
 class PatientSerializer(serializers.ModelSerializer):

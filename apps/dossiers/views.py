@@ -37,7 +37,14 @@ def patient_list_create(request):
     POST /api/v1/dossiers/patients/
     """
     if request.method == 'GET':
-        patients = Patient.objects.filter(doctor=request.user)
+        patients = Patient.objects.filter(
+            doctor=request.user
+        ).prefetch_related(
+            'consultations',
+            'consultations__doctor',
+            'vaccinations',
+            'vaccinations__doctor',
+        )
         paginator = PageNumberPagination()
         paginated_patients = paginator.paginate_queryset(patients, request)
         serializer = PatientListSerializer(paginated_patients, many=True)
@@ -80,7 +87,21 @@ def patient_detail(request, patient_id):
     PATCH /api/v1/dossiers/patients/:id/
     DELETE /api/v1/dossiers/patients/:id/
     """
-    patient = get_object_or_404(Patient, id=patient_id, doctor=request.user)
+    if request.method == 'GET':
+        # Optimiser avec prefetch_related pour GET
+        patient = get_object_or_404(
+            Patient.objects.prefetch_related(
+                'consultations',
+                'consultations__doctor',
+                'vaccinations',
+                'vaccinations__doctor',
+            ),
+            id=patient_id,
+            doctor=request.user
+        )
+    else:
+        # Pour PATCH et DELETE, pas besoin de prefetch
+        patient = get_object_or_404(Patient, id=patient_id, doctor=request.user)
 
     if request.method == 'GET':
         serializer = PatientSerializer(patient)
