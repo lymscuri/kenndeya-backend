@@ -398,7 +398,7 @@ def my_medical_record(request):
             'consultations__doctor',
             'vaccinations',
             'vaccinations__doctor'
-        ).get(email=request.user.email)
+        ).filter(email=request.user.email).first()
     except Patient.DoesNotExist:
         return Response({
             'success': False,
