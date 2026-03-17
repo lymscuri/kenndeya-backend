@@ -31,13 +31,85 @@ from .serializers import (
 @permission_classes([IsAuthenticated])
 def maternity_patient_list_create(request):
     if request.method == 'GET':
-        from apps.dossiers.serializers import PatientListSerializer
-        patients = Patient.objects.filter(doctor=request.user)
-        serializer = PatientListSerializer(patients, many=True)
+        # Récupérer les MaternityPatients liés aux patients du médecin
+        maternity_patients = MaternityPatient.objects.filter(
+            patient__doctor=request.user
+        ).select_related('patient').prefetch_related(
+            'pregnancies',
+            'pregnancies__weekly_checkups',
+            'pregnancies__prenatal_consultations',
+            'pregnancies__children',
+        )
+        
+        results = []
+        for mp in maternity_patients:
+            patient = mp.patient
+            pregnancy = mp.pregnancies.filter(status='ongoing').first() or mp.pregnancies.first()
+            weekly_checkups = []
+            prenatal_consultations = []
+            children = []
+            
+            if pregnancy:
+                weekly_checkups = [{
+                    'id': str(wc.id),
+                    'week': wc.week_number,
+                    'date': str(wc.checkup_date),
+                    'weight': float(wc.weight) if wc.weight else None,
+                    'systolic_bp': wc.blood_pressure_systolic,
+                    'diastolic_bp': wc.blood_pressure_diastolic,
+                    'fetal_movements': wc.fetal_heart_rate,
+                    'symptoms': [],
+                    'mood': wc.observations,
+                } for wc in pregnancy.weekly_checkups.all()]
+                
+                prenatal_consultations = [{
+                    'id': str(c.id),
+                    'week_target': c.consultation_number,
+                    'status': 'effectuee' if c.consultation_date else 'planifiee',
+                    'scheduled_date': str(c.scheduled_date) if hasattr(c, 'scheduled_date') else None,
+                    'done_date': str(c.consultation_date) if c.consultation_date else None,
+                } for c in pregnancy.prenatal_consultations.all()]
+                
+                children = [{
+                    'id': str(child.id),
+                    'first_name': child.first_name,
+                    'last_name': child.last_name,
+                    'birth_date': str(child.birth_date),
+                } for child in pregnancy.children.all()]
+            
+            results.append({
+                'id': str(patient.id),
+                'maternity_id': str(mp.id),
+                'first_name': patient.first_name,
+                'last_name': patient.last_name,
+                'full_name': patient.full_name,
+                'age': patient.age,
+                'date_of_birth': str(patient.date_of_birth),
+                'gender': patient.gender,
+                'phone': patient.phone,
+                'email': patient.email,
+                'doctor': str(patient.doctor_id),
+                'linked_email': patient.email,
+                'created_at': str(patient.created_at),
+                'pregnancy': {
+                    'id': str(pregnancy.id),
+                    'is_active': pregnancy.status == 'ongoing',
+                    'current_week': pregnancy.weeks_of_gestation or 0,
+                    'due_date': str(pregnancy.expected_delivery_date) if pregnancy.expected_delivery_date else None,
+                    'last_period_date': str(pregnancy.last_menstrual_period) if pregnancy.last_menstrual_period else None,
+                    'gravidity': mp.number_of_pregnancies,
+                    'parity': mp.number_of_deliveries,
+                } if pregnancy else None,
+                'weekly_checkups': weekly_checkups,
+                'prenatal_consultations': prenatal_consultations,
+                'children': children,
+                'alert_level': 'vert',
+            })
+        
         return Response({
             'success': True,
-            'count': patients.count(),
-            'results': serializer.data
+            'count': len(results),
+            'results': results
         })
 
     if request.method == 'POST':
