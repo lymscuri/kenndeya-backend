@@ -167,36 +167,97 @@ class VaccinationSerializer(serializers.ModelSerializer):
         return value
 
 
+class ConsultationNestedSerializer(serializers.ModelSerializer):
+    """
+    Serializer imbriqué pour les consultations dans my-record.
+    Retourne les consultations avec les noms de champs attendus par le frontend.
+    """
+    motif = serializers.CharField(source='reason', read_only=True)
+    motif_detail = serializers.CharField(source='symptoms', read_only=True)
+    diagnostic = serializers.CharField(source='diagnosis', read_only=True)
+    traitement = serializers.CharField(source='treatment', read_only=True)
+    recommandations = serializers.CharField(source='notes', read_only=True)
+    poids = serializers.DecimalField(source='weight', max_digits=5, decimal_places=2, read_only=True)
+    taille = serializers.DecimalField(source='height', max_digits=5, decimal_places=2, read_only=True)
+    tension_systolique = serializers.IntegerField(source='blood_pressure_systolic', read_only=True)
+    tension_diastolique = serializers.IntegerField(source='blood_pressure_diastolic', read_only=True)
+    frequence_cardiaque = serializers.IntegerField(source='heart_rate', read_only=True)
+    spo2 = serializers.SerializerMethodField()
+    prochain_rdv = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Consultation
+        fields = [
+            'id', 'date', 'motif', 'motif_detail', 'diagnostic', 'traitement',
+            'recommandations', 'poids', 'taille', 'tension_systolique',
+            'tension_diastolique', 'frequence_cardiaque', 'temperature',
+            'spo2', 'prochain_rdv'
+        ]
+        read_only_fields = ['id']
+
+    def get_spo2(self, obj):
+        """SpO2 n'existe pas dans le modèle, retourne None."""
+        return None
+
+    def get_prochain_rdv(self, obj):
+        """Prochain RDV n'existe pas dans le modèle, retourne None."""
+        return None
+
+
+class VaccinationNestedSerializer(serializers.ModelSerializer):
+    """
+    Serializer imbriqué pour les vaccinations dans my-record.
+    Version simplifiée avec uniquement les champs essentiels.
+    """
+    class Meta:
+        model = Vaccination
+        fields = [
+            'id', 'vaccine_name', 'date_administered', 'dose_number',
+            'next_dose_date', 'notes'
+        ]
+        read_only_fields = ['id']
+
+
 class PatientListSerializer(serializers.ModelSerializer):
     """
     Serializer pour la liste des patients (version allégée).
-    Inclut les consultations et vaccinations pour la synchronisation frontend.
+    Inclut les consultations et vaccinations complètes pour la synchronisation frontend.
     """
     full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(read_only=True)
-    dossier_number = serializers.SerializerMethodField()
-    consultations = ConsultationListSerializer(many=True, read_only=True)
-    vaccinations = VaccinationSerializer(many=True, read_only=True)
+    numero_dossier = serializers.SerializerMethodField()
+    linked_email = serializers.EmailField(source='email', read_only=True)
+    chronic_diseases = serializers.CharField(source='chronic_conditions', read_only=True)
+    emergency_contacts = serializers.SerializerMethodField()
+    consultations = ConsultationNestedSerializer(many=True, read_only=True)
+    vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
 
     class Meta:
         model = Patient
         fields = [
             'id', 'full_name', 'first_name', 'last_name', 'age',
-            'date_of_birth', 'gender', 'phone', 'email', 'dossier_number',
-            'blood_type', 'allergies', 'chronic_conditions',
+            'date_of_birth', 'gender', 'phone', 'email', 'numero_dossier',
+            'blood_type', 'allergies', 'chronic_diseases',
             'critical_info', 'personal_history', 'family_history',
             'life_habits', 'permanent_treatments',
-            'address', 'city', 'consultations', 'vaccinations',
+            'address', 'city', 'linked_email', 'emergency_contacts',
+            'consultations', 'vaccines',
             'created_at', 'doctor'
         ]
         read_only_fields = ['id', 'created_at']
 
-    def get_dossier_number(self, obj):
+    def get_numero_dossier(self, obj):
         """Retourne le numéro de dossier depuis MedicalRecord."""
         try:
             return obj.medical_record.record_number
         except Exception:
             return None
+
+    def get_emergency_contacts(self, obj):
+        """Retourne les contacts d'urgence depuis critical_info ou liste vide."""
+        if obj.critical_info and isinstance(obj.critical_info, dict):
+            return obj.critical_info.get('emergency_contacts', [])
+        return []
 
 
 class PatientSerializer(serializers.ModelSerializer):
@@ -237,29 +298,32 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
     Serializer pour le dossier médical complet d'un patient.
     Retourne toutes les informations : identité, consultations, vaccinations, etc.
     """
-    consultations = ConsultationListSerializer(many=True, read_only=True)
-    vaccinations = VaccinationSerializer(many=True, read_only=True)
-    age = serializers.IntegerField(read_only=True)
-    dossier_number = serializers.SerializerMethodField()
-    doctor_id = serializers.UUIDField(source='doctor.id', read_only=True)
+    numero_dossier = serializers.SerializerMethodField()
+    linked_email = serializers.EmailField(source='email', read_only=True)
+    chronic_diseases = serializers.CharField(source='chronic_conditions', read_only=True)
+    emergency_contacts = serializers.SerializerMethodField()
+    consultations = ConsultationNestedSerializer(many=True, read_only=True)
+    vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
 
     class Meta:
         model = Patient
         fields = [
-            'id', 'first_name', 'last_name', 'date_of_birth', 'age', 'gender',
-            'phone', 'email', 'blood_type', 'allergies', 'chronic_conditions',
-            'critical_info', 'personal_history', 'family_history',
-            'life_habits', 'permanent_treatments',
-            'address', 'city', 'dossier_number', 'doctor_id',
-            'consultations', 'vaccinations', 'created_at', 'updated_at'
+            'id', 'numero_dossier', 'blood_type', 'allergies', 'chronic_diseases',
+            'permanent_treatments', 'personal_history', 'family_history',
+            'life_habits', 'critical_info', 'emergency_contacts', 'linked_email',
+            'consultations', 'vaccines'
         ]
-        read_only_fields = [
-            'id', 'doctor_id', 'created_at', 'updated_at'
-        ]
+        read_only_fields = ['id']
 
-    def get_dossier_number(self, obj):
+    def get_numero_dossier(self, obj):
         """Retourne le numéro de dossier depuis MedicalRecord."""
         try:
             return obj.medical_record.record_number
         except Exception:
             return None
+
+    def get_emergency_contacts(self, obj):
+        """Retourne les contacts d'urgence depuis critical_info ou liste vide."""
+        if obj.critical_info and isinstance(obj.critical_info, dict):
+            return obj.critical_info.get('emergency_contacts', [])
+        return []

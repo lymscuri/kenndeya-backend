@@ -670,16 +670,17 @@ def my_maternity_record(request):
     GET /api/v1/maternity/my-record/
     """
     # Chercher la patiente maternité dont l'email du patient correspond à l'utilisateur connecté
-    maternity_patient = MaternityPatient.objects.filter(
-        patient__email=request.user.email
+    # Optimisation : select_related pour patient et doctor, prefetch_related pour relations many
+    maternity_patient = MaternityPatient.objects.select_related(
+        'patient'
     ).prefetch_related(
         'pregnancies',
+        'pregnancies__doctor',
         'pregnancies__prenatal_consultations',
-        'pregnancies__prenatal_consultations__doctor',
-        'pregnancies__weekly_checkups',
-        'pregnancies__weekly_checkups__doctor',
         'pregnancies__children',
-        'patient'
+        'pregnancies__children__vaccines'
+    ).filter(
+        patient__email=request.user.email
     ).first()
 
     if not maternity_patient:

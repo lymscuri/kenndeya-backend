@@ -39,11 +39,12 @@ def patient_list_create(request):
     if request.method == 'GET':
         patients = Patient.objects.filter(
             doctor=request.user
+        ).select_related(
+            'medical_record',
+            'doctor'
         ).prefetch_related(
             'consultations',
-            'consultations__doctor',
-            'vaccinations',
-            'vaccinations__doctor',
+            'vaccinations'
         )
         paginator = PageNumberPagination()
         paginated_patients = paginator.paginate_queryset(patients, request)
@@ -413,14 +414,16 @@ def my_medical_record(request):
     GET /api/v1/dossiers/my-record/
     """
     # Chercher le patient dont l'email correspond à l'utilisateur connecté
-    try:
-        patient = Patient.objects.prefetch_related(
-            'consultations',
-            'consultations__doctor',
-            'vaccinations',
-            'vaccinations__doctor'
-        ).filter(email=request.user.email).first()
-    except Patient.DoesNotExist:
+    # Optimisation : select_related pour medical_record, prefetch_related pour consultations et vaccinations
+    patient = Patient.objects.select_related(
+        'medical_record',
+        'doctor'
+    ).prefetch_related(
+        'consultations',
+        'vaccinations'
+    ).filter(email=request.user.email).first()
+
+    if not patient:
         return Response({
             'success': False,
             'error': {

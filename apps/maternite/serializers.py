@@ -244,68 +244,134 @@ class ChildVaccineSerializer(serializers.ModelSerializer):
         return value
 
 
+class PregnancyNestedSerializer(serializers.ModelSerializer):
+    """
+    Serializer imbriqué pour la grossesse dans my-maternity-record.
+    Retourne la grossesse avec les noms de champs attendus par le frontend.
+    """
+    last_period_date = serializers.DateField(source='last_menstrual_period', read_only=True)
+    due_date = serializers.DateField(source='expected_delivery_date', read_only=True)
+    current_week = serializers.IntegerField(source='weeks_of_gestation', read_only=True)
+    gravidity = serializers.SerializerMethodField()
+    parity = serializers.SerializerMethodField()
+    previous_pregnancies = serializers.SerializerMethodField()
+    delivery_place = serializers.SerializerMethodField()
+    referent_doctor = serializers.CharField(source='doctor.get_full_name', read_only=True)
+    is_active = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Pregnancy
+        fields = [
+            'id', 'last_period_date', 'due_date', 'current_week',
+            'gravidity', 'parity', 'previous_pregnancies',
+            'delivery_place', 'referent_doctor', 'is_active'
+        ]
+        read_only_fields = ['id']
+
+    def get_gravidity(self, obj):
+        """Retourne le nombre de grossesses depuis MaternityPatient."""
+        return obj.maternity_patient.number_of_pregnancies
+
+    def get_parity(self, obj):
+        """Retourne le nombre d'accouchements depuis MaternityPatient."""
+        return obj.maternity_patient.number_of_deliveries
+
+    def get_previous_pregnancies(self, obj):
+        """Retourne les informations sur les grossesses précédentes."""
+        return obj.maternity_patient.obstetric_history if obj.maternity_patient.obstetric_history else None
+
+    def get_delivery_place(self, obj):
+        """Retourne le lieu d'accouchement prévu (à extraire des notes ou risk_factors)."""
+        return obj.notes if obj.notes else ""
+
+    def get_is_active(self, obj):
+        """Retourne True si la grossesse est en cours."""
+        return obj.status == 'ongoing'
+
+
+class PrenatalConsultationNestedSerializer(serializers.ModelSerializer):
+    """
+    Serializer imbriqué pour les consultations prénatales dans my-maternity-record.
+    Version simplifiée avec les champs essentiels.
+    """
+    date = serializers.DateTimeField(source='consultation_date', read_only=True)
+    week = serializers.IntegerField(source='week_of_gestation', read_only=True)
+    blood_pressure = serializers.SerializerMethodField()
+    notes = serializers.CharField(source='clinical_findings', read_only=True)
+    next_appointment = serializers.DateField(read_only=True)
+
+    class Meta:
+        model = PrenatalConsultation
+        fields = [
+            'id', 'date', 'week', 'weight', 'blood_pressure',
+            'fetal_heart_rate', 'notes', 'next_appointment'
+        ]
+        read_only_fields = ['id']
+
+    def get_blood_pressure(self, obj):
+        """Retourne la pression artérielle formatée."""
+        if obj.blood_pressure_systolic and obj.blood_pressure_diastolic:
+            return f"{obj.blood_pressure_systolic}/{obj.blood_pressure_diastolic}"
+        return ""
+
+
 class MyMaternityRecordSerializer(serializers.ModelSerializer):
     """
     Serializer pour le dossier maternité complet d'une patiente.
     Retourne toutes les informations : profil, grossesse en cours, consultations, enfants.
     """
     # Informations patient
+    linked_email = serializers.EmailField(source='patient.email', read_only=True)
     first_name = serializers.CharField(source='patient.first_name', read_only=True)
-    last_name = serializers.CharField(source='patient.last_name', read_only=True)
-    email = serializers.EmailField(source='patient.email', read_only=True)
-    phone = serializers.CharField(source='patient.phone', read_only=True)
     age = serializers.IntegerField(source='patient.age', read_only=True)
-    date_of_birth = serializers.DateField(source='patient.date_of_birth', read_only=True)
 
     # Grossesse en cours
-    current_pregnancy = serializers.SerializerMethodField()
+    pregnancy = serializers.SerializerMethodField()
 
-    # Consultations prénatales (toutes grossesses confondues)
+    # Consultations prénatales (grossesse en cours uniquement)
     prenatal_consultations = serializers.SerializerMethodField()
 
-    # Suivis hebdomadaires (toutes grossesses confondues)
-    weekly_checkups = serializers.SerializerMethodField()
-
-    # Enfants
-    children = serializers.SerializerMethodField()
+    # Vaccinations PEV (enfants)
+    vaccinations_pev = serializers.SerializerMethodField()
 
     class Meta:
         model = MaternityPatient
         fields = [
-            'id', 'first_name', 'last_name', 'email', 'phone', 'age', 'date_of_birth',
-            'blood_rhesus', 'number_of_pregnancies', 'number_of_deliveries',
-            'number_of_living_children', 'medical_history', 'obstetric_history',
-            'current_pregnancy', 'prenatal_consultations', 'weekly_checkups', 'children',
-            'created_at', 'updated_at'
+            'id', 'linked_email', 'first_name', 'age',
+            'pregnancy', 'prenatal_consultations', 'vaccinations_pev'
         ]
-        read_only_fields = [
-            'id', 'created_at', 'updated_at'
-        ]
+        read_only_fields = ['id']
 
-    def get_current_pregnancy(self, obj):
+    def get_pregnancy(self, obj):
         """Retourne la grossesse en cours (status='ongoing')."""
         pregnancy = obj.pregnancies.filter(status='ongoing').first()
         if pregnancy:
-            return PregnancySerializer(pregnancy).data
+            return PregnancyNestedSerializer(pregnancy).data
         return None
 
     def get_prenatal_consultations(self, obj):
-        """Retourne toutes les consultations prénatales de toutes les grossesses."""
-        consultations = PrenatalConsultation.objects.filter(
-            pregnancy__maternity_patient=obj
-        ).order_by('-consultation_date')[:20]  # Limiter aux 20 dernières
-        return PrenatalConsultationSerializer(consultations, many=True).data
+        """Retourne les consultations prénatales de la grossesse en cours."""
+        pregnancy = obj.pregnancies.filter(status='ongoing').first()
+        if pregnancy:
+            consultations = pregnancy.prenatal_consultations.all().order_by('-consultation_date')[:20]
+            return PrenatalConsultationNestedSerializer(consultations, many=True).data
+        return []
 
-    def get_weekly_checkups(self, obj):
-        """Retourne tous les suivis hebdomadaires de toutes les grossesses."""
-        checkups = WeeklyCheckup.objects.filter(
-            pregnancy__maternity_patient=obj
-        ).order_by('-checkup_date')[:20]  # Limiter aux 20 derniers
-        return WeeklyCheckupSerializer(checkups, many=True).data
-
-    def get_children(self, obj):
-        """Retourne tous les enfants nés."""
-        children = Child.objects.filter(
-            pregnancy__maternity_patient=obj
-        ).order_by('-birth_date')
-        return ChildSerializer(children, many=True).data
+    def get_vaccinations_pev(self, obj):
+        """Retourne les vaccinations PEV de tous les enfants."""
+        from apps.dossiers.serializers import VaccinationNestedSerializer
+        children = Child.objects.filter(pregnancy__maternity_patient=obj)
+        vaccines = []
+        for child in children:
+            child_vaccines = ChildVaccine.objects.filter(child=child)
+            # Mapper vers un format compatible
+            for vaccine in child_vaccines:
+                vaccines.append({
+                    'id': str(vaccine.id),
+                    'vaccine_name': vaccine.vaccine_name,
+                    'date_administered': vaccine.date_administered,
+                    'dose_number': vaccine.dose_number,
+                    'next_dose_date': vaccine.next_dose_date,
+                    'notes': vaccine.notes or ""
+                })
+        return vaccines
