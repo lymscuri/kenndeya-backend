@@ -58,6 +58,33 @@ class Patient(models.Model):
     allergies = models.TextField('Allergies', blank=True, default='')
     chronic_conditions = models.TextField('Maladies chroniques', blank=True, default='')
 
+    # Antécédents et habitudes
+    personal_history = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Antécédents personnels"
+    )
+    family_history = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Antécédents familiaux"
+    )
+    life_habits = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Habitudes de vie"
+    )
+    critical_info = models.JSONField(
+        default=dict,
+        blank=True,
+        verbose_name="Informations critiques"
+    )
+    permanent_treatments = models.TextField(
+        blank=True,
+        default='',
+        verbose_name="Traitements permanents"
+    )
+
     # Adresse
     address = models.TextField('Adresse', blank=True, default='')
     city = models.CharField('Ville', max_length=100, blank=True, default='')

@@ -184,6 +184,8 @@ class PatientListSerializer(serializers.ModelSerializer):
             'id', 'full_name', 'first_name', 'last_name', 'age',
             'date_of_birth', 'gender', 'phone', 'email', 'dossier_number',
             'blood_type', 'allergies', 'chronic_conditions',
+            'critical_info', 'personal_history', 'family_history',
+            'life_habits', 'permanent_treatments',
             'address', 'city', 'consultations', 'vaccinations',
             'created_at', 'doctor'
         ]
@@ -213,6 +215,8 @@ class PatientSerializer(serializers.ModelSerializer):
             'id', 'doctor', 'doctor_name', 'full_name',
             'first_name', 'last_name', 'date_of_birth', 'age', 'gender',
             'phone', 'email', 'blood_type', 'allergies', 'chronic_conditions',
+            'personal_history', 'family_history', 'life_habits',
+            'critical_info', 'permanent_treatments',
             'address', 'city', 'consultations', 'vaccinations',
             'created_at', 'updated_at'
         ]
@@ -244,6 +248,8 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
         fields = [
             'id', 'first_name', 'last_name', 'date_of_birth', 'age', 'gender',
             'phone', 'email', 'blood_type', 'allergies', 'chronic_conditions',
+            'critical_info', 'personal_history', 'family_history',
+            'life_habits', 'permanent_treatments',
             'address', 'city', 'dossier_number', 'doctor_id',
             'consultations', 'vaccinations', 'created_at', 'updated_at'
         ]
