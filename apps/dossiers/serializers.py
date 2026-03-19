@@ -42,7 +42,7 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'id', 'consultation', 'medication_name', 'dosage',
             'frequency', 'duration', 'instructions', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'consultation', 'created_at', 'updated_at']
 
 
 class LabTestSerializer(serializers.ModelSerializer):
@@ -58,7 +58,7 @@ class LabTestSerializer(serializers.ModelSerializer):
             'ordered_date', 'completed_date', 'results', 'interpretation',
             'attachments', 'attachments_url', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'ordered_date', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'consultation', 'ordered_date', 'created_at', 'updated_at']
 
     def get_attachments_url(self, obj):
         """Retourne l'URL complète des pièces jointes."""
@@ -154,7 +154,7 @@ class VaccinationSerializer(serializers.ModelSerializer):
             'batch_number', 'manufacturer', 'site', 'notes',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'patient', 'doctor', 'created_at', 'updated_at']
 
     def validate_next_dose_date(self, value):
         """Valide que la date de la prochaine dose est dans le futur."""
@@ -302,18 +302,21 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
     linked_email = serializers.EmailField(source='email', read_only=True)
     chronic_diseases = serializers.CharField(source='chronic_conditions', read_only=True)
     emergency_contacts = serializers.SerializerMethodField()
+    age = serializers.IntegerField(read_only=True)
     consultations = ConsultationNestedSerializer(many=True, read_only=True)
     vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
 
     class Meta:
         model = Patient
         fields = [
-            'id', 'numero_dossier', 'blood_type', 'allergies', 'chronic_diseases',
+            'id', 'numero_dossier', 'first_name', 'last_name', 'age', 'gender',
+            'phone', 'address', 'city', 'date_of_birth',
+            'blood_type', 'allergies', 'chronic_diseases',
             'permanent_treatments', 'personal_history', 'family_history',
             'life_habits', 'critical_info', 'emergency_contacts', 'linked_email',
             'consultations', 'vaccines'
         ]
-        read_only_fields = ['id']
+        read_only_fields = ['id', 'age']
 
     def get_numero_dossier(self, obj):
         """Retourne le numéro de dossier depuis MedicalRecord."""
