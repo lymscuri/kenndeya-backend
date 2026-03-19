@@ -167,6 +167,20 @@ class VaccinationSerializer(serializers.ModelSerializer):
         return value
 
 
+class LabTestNestedSerializer(serializers.ModelSerializer):
+    """
+    Serializer imbriqué pour les examens de laboratoire dans consultations.
+    Version simplifiée avec uniquement les champs essentiels.
+    """
+    class Meta:
+        model = LabTest
+        fields = [
+            'id', 'test_name', 'test_type', 'status',
+            'ordered_date', 'completed_date', 'results', 'interpretation'
+        ]
+        read_only_fields = ['id']
+
+
 class ConsultationNestedSerializer(serializers.ModelSerializer):
     """
     Serializer imbriqué pour les consultations dans my-record.
@@ -184,6 +198,7 @@ class ConsultationNestedSerializer(serializers.ModelSerializer):
     frequence_cardiaque = serializers.IntegerField(source='heart_rate', read_only=True)
     spo2 = serializers.SerializerMethodField()
     prochain_rdv = serializers.SerializerMethodField()
+    lab_tests = LabTestNestedSerializer(many=True, read_only=True)
 
     class Meta:
         model = Consultation
@@ -191,7 +206,7 @@ class ConsultationNestedSerializer(serializers.ModelSerializer):
             'id', 'date', 'motif', 'motif_detail', 'diagnostic', 'traitement',
             'recommandations', 'poids', 'taille', 'tension_systolique',
             'tension_diastolique', 'frequence_cardiaque', 'temperature',
-            'spo2', 'prochain_rdv'
+            'spo2', 'prochain_rdv', 'lab_tests'
         ]
         read_only_fields = ['id']
 

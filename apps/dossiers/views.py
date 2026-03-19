@@ -46,6 +46,7 @@ def patient_list_create(request):
             'doctor'
         ).prefetch_related(
             'consultations',
+            'consultations__lab_tests',
             'vaccinations',
             'surgeries',
             'hospitalisations'
@@ -418,12 +419,13 @@ def my_medical_record(request):
     GET /api/v1/dossiers/my-record/
     """
     # Chercher le patient dont l'email correspond à l'utilisateur connecté
-    # Optimisation : select_related pour medical_record, prefetch_related pour consultations, vaccinations, surgeries, hospitalisations
+    # Optimisation : select_related pour medical_record, prefetch_related pour consultations, vaccinations, surgeries, hospitalisations, lab_tests
     patient = Patient.objects.select_related(
         'medical_record',
         'doctor'
     ).prefetch_related(
         'consultations',
+        'consultations__lab_tests',
         'vaccinations',
         'surgeries',
         'hospitalisations'
