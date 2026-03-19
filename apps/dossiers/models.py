@@ -88,6 +88,7 @@ class Patient(models.Model):
     # Adresse
     address = models.TextField('Adresse', blank=True, default='')
     city = models.CharField('Ville', max_length=100, blank=True, default='')
+    prefecture = models.CharField('Préfecture', max_length=100, blank=True, default='')
 
     # Timestamps
     created_at = models.DateTimeField('Date de création', auto_now_add=True)

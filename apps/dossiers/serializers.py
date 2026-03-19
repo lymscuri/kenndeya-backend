@@ -277,7 +277,7 @@ class PatientListSerializer(serializers.ModelSerializer):
             'blood_type', 'allergies', 'chronic_diseases',
             'critical_info', 'personal_history', 'family_history',
             'life_habits', 'permanent_treatments',
-            'address', 'city', 'linked_email', 'emergency_contacts',
+            'address', 'city', 'prefecture', 'linked_email', 'emergency_contacts',
             'consultations', 'vaccines', 'surgeries', 'hospitalisations',
             'created_at', 'doctor'
         ]
@@ -315,7 +315,7 @@ class PatientSerializer(serializers.ModelSerializer):
             'phone', 'email', 'blood_type', 'allergies', 'chronic_conditions',
             'personal_history', 'family_history', 'life_habits',
             'critical_info', 'permanent_treatments',
-            'address', 'city', 'consultations', 'vaccinations',
+            'address', 'city', 'prefecture', 'consultations', 'vaccinations',
             'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'doctor', 'created_at', 'updated_at']
@@ -349,7 +349,7 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
         model = Patient
         fields = [
             'id', 'numero_dossier', 'first_name', 'last_name', 'age', 'gender',
-            'phone', 'address', 'city', 'date_of_birth',
+            'phone', 'address', 'city', 'prefecture', 'date_of_birth',
             'blood_type', 'allergies', 'chronic_diseases',
             'permanent_treatments', 'personal_history', 'family_history',
             'life_habits', 'critical_info', 'emergency_contacts', 'linked_email',
