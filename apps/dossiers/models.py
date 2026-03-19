@@ -385,3 +385,74 @@ class Vaccination(models.Model):
 
     def __str__(self):
         return f"{self.vaccine_name} - {self.patient.full_name} - Dose {self.dose_number}"
+
+
+class Chirurgie(models.Model):
+    """
+    Modèle Chirurgie.
+    Représente une opération chirurgicale subie par un patient.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='surgeries',
+        verbose_name='Patient'
+    )
+
+    nom = models.CharField('Nom de la chirurgie', max_length=200)
+    date = models.DateField('Date de la chirurgie', null=True, blank=True)
+    hopital = models.CharField('Hôpital', max_length=200, blank=True, default='')
+    notes = models.TextField('Notes', blank=True, default='')
+
+    # Timestamps
+    created_at = models.DateTimeField('Date de création', auto_now_add=True)
+    updated_at = models.DateTimeField('Date de modification', auto_now=True)
+
+    class Meta:
+        db_table = 'chirurgies'
+        verbose_name = 'Chirurgie'
+        verbose_name_plural = 'Chirurgies'
+        ordering = ['-date']
+        indexes = [
+            models.Index(fields=['patient', '-date']),
+        ]
+
+    def __str__(self):
+        return f"{self.nom} - {self.patient.full_name}"
+
+
+class Hospitalisation(models.Model):
+    """
+    Modèle Hospitalisation.
+    Représente une hospitalisation d'un patient.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    patient = models.ForeignKey(
+        Patient,
+        on_delete=models.CASCADE,
+        related_name='hospitalisations',
+        verbose_name='Patient'
+    )
+
+    motif = models.CharField('Motif de l\'hospitalisation', max_length=200)
+    date_entree = models.DateField('Date d\'entrée', null=True, blank=True)
+    date_sortie = models.DateField('Date de sortie', null=True, blank=True)
+    hopital = models.CharField('Hôpital', max_length=200, blank=True, default='')
+    notes = models.TextField('Notes', blank=True, default='')
+
+    # Timestamps
+    created_at = models.DateTimeField('Date de création', auto_now_add=True)
+    updated_at = models.DateTimeField('Date de modification', auto_now=True)
+
+    class Meta:
+        db_table = 'hospitalisations'
+        verbose_name = 'Hospitalisation'
+        verbose_name_plural = 'Hospitalisations'
+        ordering = ['-date_entree']
+        indexes = [
+            models.Index(fields=['patient', '-date_entree']),
+        ]
+
+    def __str__(self):
+        return f"{self.motif} - {self.patient.full_name}"

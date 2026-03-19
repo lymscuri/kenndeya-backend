@@ -31,4 +31,10 @@ urlpatterns = [
 
     # Vaccinations
     path('patients/<uuid:patient_id>/vaccinations/', views.vaccination_list_create, name='vaccination_list_create'),
+
+    # Chirurgies
+    path('patients/<uuid:patient_id>/chirurgies/', views.ChirurgieListCreateView.as_view(), name='chirurgie_list_create'),
+
+    # Hospitalisations
+    path('patients/<uuid:patient_id>/hospitalisations/', views.HospitalisationListCreateView.as_view(), name='hospitalisation_list_create'),
 ]

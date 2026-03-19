@@ -3,7 +3,7 @@ Vues pour l'application dossiers.
 Gère les dossiers médicaux, patients, consultations, etc.
 """
 
-from rest_framework import status
+from rest_framework import status, generics
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
@@ -11,7 +11,7 @@ from rest_framework.pagination import PageNumberPagination
 from django.shortcuts import get_object_or_404
 
 from core.permissions import IsDoctor
-from .models import Patient, MedicalRecord, Consultation, Prescription, LabTest, Vaccination
+from .models import Patient, MedicalRecord, Consultation, Prescription, LabTest, Vaccination, Chirurgie, Hospitalisation
 from .serializers import (
     PatientListSerializer,
     PatientSerializer,
@@ -21,7 +21,9 @@ from .serializers import (
     PrescriptionSerializer,
     LabTestSerializer,
     VaccinationSerializer,
-    MyMedicalRecordSerializer
+    MyMedicalRecordSerializer,
+    ChirurgieSerializer,
+    HospitalisationSerializer
 )
 
 
@@ -44,7 +46,9 @@ def patient_list_create(request):
             'doctor'
         ).prefetch_related(
             'consultations',
-            'vaccinations'
+            'vaccinations',
+            'surgeries',
+            'hospitalisations'
         )
         paginator = PageNumberPagination()
         paginated_patients = paginator.paginate_queryset(patients, request)
@@ -414,13 +418,15 @@ def my_medical_record(request):
     GET /api/v1/dossiers/my-record/
     """
     # Chercher le patient dont l'email correspond à l'utilisateur connecté
-    # Optimisation : select_related pour medical_record, prefetch_related pour consultations et vaccinations
+    # Optimisation : select_related pour medical_record, prefetch_related pour consultations, vaccinations, surgeries, hospitalisations
     patient = Patient.objects.select_related(
         'medical_record',
         'doctor'
     ).prefetch_related(
         'consultations',
-        'vaccinations'
+        'vaccinations',
+        'surgeries',
+        'hospitalisations'
     ).filter(email=request.user.email).first()
 
     if not patient:
@@ -444,3 +450,43 @@ def my_medical_record(request):
         'message': 'Dossier médical récupéré avec succès.',
         'data': serializer.data
     }, status=status.HTTP_200_OK)
+
+
+# ========== CHIRURGIES ==========
+
+class ChirurgieListCreateView(generics.ListCreateAPIView):
+    """
+    Liste toutes les chirurgies d'un patient ou ajoute une chirurgie.
+
+    GET /api/v1/dossiers/patients/:id/chirurgies/
+    POST /api/v1/dossiers/patients/:id/chirurgies/
+    """
+    serializer_class = ChirurgieSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Chirurgie.objects.filter(patient_id=self.kwargs['patient_id'])
+
+    def perform_create(self, serializer):
+        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'])
+        serializer.save(patient=patient)
+
+
+# ========== HOSPITALISATIONS ==========
+
+class HospitalisationListCreateView(generics.ListCreateAPIView):
+    """
+    Liste toutes les hospitalisations d'un patient ou ajoute une hospitalisation.
+
+    GET /api/v1/dossiers/patients/:id/hospitalisations/
+    POST /api/v1/dossiers/patients/:id/hospitalisations/
+    """
+    serializer_class = HospitalisationSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_queryset(self):
+        return Hospitalisation.objects.filter(patient_id=self.kwargs['patient_id'])
+
+    def perform_create(self, serializer):
+        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'])
+        serializer.save(patient=patient)
