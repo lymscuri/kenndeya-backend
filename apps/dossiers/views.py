@@ -362,6 +362,37 @@ def lab_test_update(request, patient_id, consultation_id, lab_test_id):
     }, status=status.HTTP_400_BAD_REQUEST)
 
 
+@api_view(['POST'])
+@permission_classes([IsDoctor])
+def lab_test_direct_create(request, patient_id):
+    """
+    Crée un examen de laboratoire directement pour un patient, sans consultation obligatoire.
+
+    POST /api/v1/dossiers/patients/:id/lab-tests/
+    """
+    patient = get_object_or_404(Patient, id=patient_id, doctor=request.user)
+
+    serializer = LabTestSerializer(data=request.data, context={'request': request})
+
+    if serializer.is_valid():
+        lab_test = serializer.save()
+
+        return Response({
+            'success': True,
+            'message': 'Examen de laboratoire créé avec succès.',
+            'data': LabTestSerializer(lab_test, context={'request': request}).data
+        }, status=status.HTTP_201_CREATED)
+
+    return Response({
+        'success': False,
+        'error': {
+            'code': 'validation_error',
+            'message': 'Les données fournies sont invalides.',
+            'details': serializer.errors
+        }
+    }, status=status.HTTP_400_BAD_REQUEST)
+
+
 # ========== VACCINATIONS ==========
 
 @api_view(['GET', 'POST'])

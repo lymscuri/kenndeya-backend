@@ -28,6 +28,7 @@ urlpatterns = [
     # Examens de laboratoire
     path('patients/<uuid:patient_id>/consultations/<uuid:consultation_id>/lab-tests/', views.lab_test_create, name='lab_test_create'),
     path('patients/<uuid:patient_id>/consultations/<uuid:consultation_id>/lab-tests/<uuid:lab_test_id>/', views.lab_test_update, name='lab_test_update'),
+    path('patients/<uuid:patient_id>/lab-tests/', views.lab_test_direct_create, name='lab_test_direct_create'),
 
     # Vaccinations
     path('patients/<uuid:patient_id>/vaccinations/', views.vaccination_list_create, name='vaccination_list_create'),

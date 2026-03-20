@@ -302,7 +302,9 @@ class LabTest(models.Model):
         Consultation,
         on_delete=models.CASCADE,
         related_name='lab_tests',
-        verbose_name='Consultation'
+        verbose_name='Consultation',
+        null=True,
+        blank=True
     )
 
     test_name = models.CharField('Nom de l\'examen', max_length=200)
