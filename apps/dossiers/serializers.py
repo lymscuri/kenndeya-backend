@@ -94,7 +94,6 @@ class ConsultationSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.full_name', read_only=True)
     doctor_name = serializers.CharField(source='doctor.get_full_name', read_only=True)
     prescriptions = PrescriptionSerializer(many=True, read_only=True)
-    lab_tests = LabTestSerializer(many=True, read_only=True)
     vital_signs = serializers.DictField(write_only=True, required=False)
 
     class Meta:
@@ -268,7 +267,6 @@ class PatientListSerializer(serializers.ModelSerializer):
     vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
     surgeries = ChirurgieSerializer(many=True, read_only=True)
     hospitalisations = HospitalisationSerializer(many=True, read_only=True)
-    lab_tests = LabTestSerializer(many=True, read_only=True)
 
     class Meta:
         model = Patient
@@ -279,7 +277,7 @@ class PatientListSerializer(serializers.ModelSerializer):
             'critical_info', 'personal_history', 'family_history',
             'life_habits', 'permanent_treatments',
             'address', 'city', 'prefecture', 'linked_email', 'emergency_contacts',
-            'consultations', 'vaccines', 'surgeries', 'hospitalisations', 'lab_tests',
+            'consultations', 'vaccines', 'surgeries', 'hospitalisations',
             'created_at', 'doctor'
         ]
         read_only_fields = ['id', 'created_at']
@@ -345,7 +343,6 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
     vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
     surgeries = ChirurgieSerializer(many=True, read_only=True)
     hospitalisations = HospitalisationSerializer(many=True, read_only=True)
-    lab_tests = LabTestSerializer(many=True, read_only=True)
 
     class Meta:
         model = Patient
