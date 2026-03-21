@@ -252,6 +252,13 @@ class HospitalisationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'patient', 'created_at', 'updated_at']
 
 
+class LabTestDirectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = LabTest
+        fields = ["id", "test_name", "test_type", "status",
+                  "ordered_date", "completed_date", "results", "interpretation"]
+        read_only_fields = ["id"]
+
 class PatientListSerializer(serializers.ModelSerializer):
     """
     Serializer pour la liste des patients (version allégée).
@@ -277,7 +284,7 @@ class PatientListSerializer(serializers.ModelSerializer):
             'critical_info', 'personal_history', 'family_history',
             'life_habits', 'permanent_treatments',
             'address', 'city', 'prefecture', 'linked_email', 'emergency_contacts',
-            'consultations', 'vaccines', 'surgeries', 'hospitalisations',
+            'consultations', 'vaccines', 'surgeries', 'hospitalisations', 'direct_lab_tests',
             'created_at', 'doctor'
         ]
         read_only_fields = ['id', 'created_at']

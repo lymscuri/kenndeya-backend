@@ -47,6 +47,7 @@ def patient_list_create(request):
         ).prefetch_related(
             'consultations',
             'consultations__lab_tests',
+            'direct_lab_tests',
             'vaccinations',
             'surgeries',
             'hospitalisations'
@@ -375,7 +376,7 @@ def lab_test_direct_create(request, patient_id):
     serializer = LabTestSerializer(data=request.data, context={'request': request})
 
     if serializer.is_valid():
-        lab_test = serializer.save()
+        lab_test = serializer.save(patient=patient)
 
         return Response({
             'success': True,
@@ -457,6 +458,7 @@ def my_medical_record(request):
     ).prefetch_related(
         'consultations',
         'consultations__lab_tests',
+            'direct_lab_tests',
         'vaccinations',
         'surgeries',
         'hospitalisations'

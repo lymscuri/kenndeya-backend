@@ -287,6 +287,13 @@ class Prescription(models.Model):
 
 
 class LabTest(models.Model):
+    patient = models.ForeignKey(
+        'Patient',
+        on_delete=models.CASCADE,
+        related_name='direct_lab_tests',
+        null=True,
+        blank=True,
+    )
     """
     Modèle Examen de Laboratoire.
     Représente un examen médical de laboratoire.
