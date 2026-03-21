@@ -54,11 +54,11 @@ class LabTestSerializer(serializers.ModelSerializer):
     class Meta:
         model = LabTest
         fields = [
-            'id', 'consultation', 'test_name', 'test_type', 'status',
+            'id', 'consultation', 'patient', 'test_name', 'test_type', 'status',
             'ordered_date', 'completed_date', 'results', 'interpretation',
             'attachments', 'attachments_url', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'consultation', 'ordered_date', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'consultation', 'patient', 'ordered_date', 'created_at', 'updated_at']
 
     def get_attachments_url(self, obj):
         """Retourne l'URL complète des pièces jointes."""
