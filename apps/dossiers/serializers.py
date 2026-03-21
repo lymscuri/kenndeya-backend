@@ -351,6 +351,7 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
     vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
     surgeries = ChirurgieSerializer(many=True, read_only=True)
     hospitalisations = HospitalisationSerializer(many=True, read_only=True)
+    direct_lab_tests = LabTestDirectSerializer(many=True, read_only=True)
 
     class Meta:
         model = Patient
@@ -360,7 +361,7 @@ class MyMedicalRecordSerializer(serializers.ModelSerializer):
             'blood_type', 'allergies', 'chronic_diseases',
             'permanent_treatments', 'personal_history', 'family_history',
             'life_habits', 'critical_info', 'emergency_contacts', 'linked_email',
-            'consultations', 'vaccines', 'surgeries', 'hospitalisations'
+            'consultations', 'vaccines', 'surgeries', 'hospitalisations', 'direct_lab_tests'
         ]
         read_only_fields = ['id', 'age']
 

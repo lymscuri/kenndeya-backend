@@ -1,0 +1,5 @@
+{"event": "session_start", "timestamp": "2026-03-21T20:54:43.629540+01:00", "session_id": "32ca9e25-b301-4b95-a15d-24628150ec15", "alias_api_key": ""}
+{"event": "user_message", "timestamp": "2026-03-21T20:57:25.460118+01:00", "content": "exit"}
+{"event": "user_message", "timestamp": "2026-03-21T20:57:31.158845+01:00", "content": "exit"}
+{"event": "user_message", "timestamp": "2026-03-21T20:57:31.159014+01:00", "content": "quit"}
+{"event": "session_end", "timestamp": "2026-03-21T20:57:33.630324+01:00", "session_id": "32ca9e25-b301-4b95-a15d-24628150ec15", "timing_metrics": {"active_time_seconds": 2.3876450061798096, "idle_time_seconds": 168.74389266967773, "total_time_seconds": 171.13153767585754, "active_percentage": 1.4}, "cost": {"total_cost": 0.0}}
