@@ -274,6 +274,7 @@ class PatientListSerializer(serializers.ModelSerializer):
     vaccines = VaccinationNestedSerializer(source='vaccinations', many=True, read_only=True)
     surgeries = ChirurgieSerializer(many=True, read_only=True)
     hospitalisations = HospitalisationSerializer(many=True, read_only=True)
+    direct_lab_tests = LabTestDirectSerializer(many=True, read_only=True)
 
     class Meta:
         model = Patient
