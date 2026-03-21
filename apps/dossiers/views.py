@@ -47,6 +47,7 @@ def patient_list_create(request):
         ).prefetch_related(
             'consultations',
             'consultations__lab_tests',
+            'lab_tests',
             'vaccinations',
             'surgeries',
             'hospitalisations'
@@ -457,6 +458,7 @@ def my_medical_record(request):
     ).prefetch_related(
         'consultations',
         'consultations__lab_tests',
+            'lab_tests',
         'vaccinations',
         'surgeries',
         'hospitalisations'
