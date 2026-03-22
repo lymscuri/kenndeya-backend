@@ -45,7 +45,7 @@ class PregnancySerializer(serializers.ModelSerializer):
             'weeks_of_gestation', 'risk_factors', 'notes',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
 
     def validate(self, attrs):
         """Valide la cohérence des dates."""
@@ -87,7 +87,7 @@ class WeeklyCheckupSerializer(serializers.ModelSerializer):
             'complaints', 'observations', 'recommendations',
             'next_appointment', 'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
 
     def validate(self, attrs):
         """Valide la cohérence de la pression artérielle."""
@@ -118,7 +118,7 @@ class PrenatalExamSerializer(serializers.ModelSerializer):
             'results', 'interpretation', 'attachments', 'attachments_url',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'ordered_date', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'prenatal_consultation', 'ordered_date', 'created_at', 'updated_at']
 
     def get_attachments_url(self, obj):
         """Retourne l'URL complète des pièces jointes."""
@@ -149,7 +149,7 @@ class PrenatalConsultationSerializer(serializers.ModelSerializer):
             'recommendations', 'next_appointment', 'exams',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
 
     def validate(self, attrs):
         """Valide la cohérence de la pression artérielle."""
@@ -212,7 +212,7 @@ class ChildGrowthSerializer(serializers.ModelSerializer):
             'recommendations', 'next_appointment',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
 
 
 class ChildVaccineSerializer(serializers.ModelSerializer):
@@ -231,7 +231,7 @@ class ChildVaccineSerializer(serializers.ModelSerializer):
             'batch_number', 'manufacturer', 'site', 'notes',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'doctor', 'maternity_patient', 'created_at', 'updated_at']
 
     def validate_next_dose_date(self, value):
         """Valide que la date de la prochaine dose est dans le futur."""
