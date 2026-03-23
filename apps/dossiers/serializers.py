@@ -313,6 +313,9 @@ class PatientSerializer(serializers.ModelSerializer):
     doctor_name = serializers.CharField(source='doctor.get_full_name', read_only=True)
     consultations = ConsultationListSerializer(many=True, read_only=True)
     vaccinations = VaccinationSerializer(many=True, read_only=True)
+    surgeries = ChirurgieSerializer(many=True, read_only=True)
+    hospitalisations = HospitalisationSerializer(many=True, read_only=True)
+    direct_lab_tests = LabTestDirectSerializer(many=True, read_only=True)
 
     class Meta:
         model = Patient
@@ -323,7 +326,7 @@ class PatientSerializer(serializers.ModelSerializer):
             'personal_history', 'family_history', 'life_habits',
             'critical_info', 'permanent_treatments',
             'address', 'city', 'prefecture', 'consultations', 'vaccinations',
-            'created_at', 'updated_at'
+            'created_at', 'updated_at', 'surgeries', 'hospitalisations', 'direct_lab_tests',
         ]
         read_only_fields = ['id', 'doctor', 'created_at', 'updated_at']
 

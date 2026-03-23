@@ -102,6 +102,9 @@ def patient_detail(request, patient_id):
                 'consultations__doctor',
                 'vaccinations',
                 'vaccinations__doctor',
+                'surgeries',
+                'hospitalisations',
+                'direct_lab_tests',
             ),
             id=patient_id,
             doctor=request.user
