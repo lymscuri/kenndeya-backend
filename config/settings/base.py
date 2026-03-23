@@ -53,6 +53,7 @@ INSTALLED_APPS = [
     'apps.maternite',
     'apps.urgences',
     'apps.reminders',
+    'apps.sms',
     'apps.notifications',
     'core',
 ]

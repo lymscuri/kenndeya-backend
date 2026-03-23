@@ -80,6 +80,7 @@ urlpatterns = [
     path('api/v1/maternity/', include('apps.maternite.urls')),
     path('api/v1/emergency/', include('apps.urgences.urls')),
     path('api/v1/reminders/', include('apps.reminders.urls')),
+    path('api/v1/sms/', include('apps.sms.urls')),
     path('api/v1/notifications/', include('apps.notifications.urls')),
 ]
 
