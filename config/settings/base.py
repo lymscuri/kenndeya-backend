@@ -319,3 +319,9 @@ JAZZMIN_UI_TWEAKS = {
     "navbar": "navbar-dark",
     "sidebar": "sidebar-dark-purple",
 }
+
+# Finders pour inclure les fichiers statiques des apps installées
+STATICFILES_FINDERS = [
+    'django.contrib.staticfiles.finders.FileSystemFinder',
+    'django.contrib.staticfiles.finders.AppDirectoriesFinder',
+]
