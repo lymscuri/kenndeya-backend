@@ -181,7 +181,7 @@ def emergency_alert_create(request):
         # Envoyer une notification push aux médecins et secouristes
         description = alert.description[:50] if alert.description else "Urgence signalée"
         push_service.send_to_roles(
-            roles=['medecin', 'secourist'],
+            roles=['medecin', 'secourist', 'patient', 'doctor'],
             title="🚨 Alerte SOS",
             body=f"Urgence signalée : {description}",
             data={"type": "emergency", "alertId": str(alert.id)}
