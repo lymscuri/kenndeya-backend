@@ -30,6 +30,9 @@ ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=[])
 
 # APPLICATIONS DJANGO
 INSTALLED_APPS = [
+    # Jazzmin (doit être avant django.contrib.admin)
+    'jazzmin',
+
     # Applications Django par défaut
     'django.contrib.admin',
     'django.contrib.auth',
@@ -292,4 +295,27 @@ LOGGING = {
             'propagate': False,
         },
     },
+}
+
+# CONFIGURATION JAZZMIN (Django Admin personnalisé)
+JAZZMIN_SETTINGS = {
+    "site_title": "Kendeya Admin",
+    "site_header": "Kendeya",
+    "site_brand": "Kendeya Santé",
+    "welcome_sign": "Bienvenue dans l'administration Kendeya",
+    "copyright": "SilySec © 2026",
+    "search_model": ["accounts.User"],
+    "icons": {
+        "accounts.User": "fas fa-user-md",
+        "dossiers.Patient": "fas fa-folder-open",
+        "sms.SMSReminder": "fas fa-sms",
+    },
+    "show_ui_builder": False,
+}
+
+JAZZMIN_UI_TWEAKS = {
+    "brand_colour": "navbar-purple",
+    "accent": "accent-purple",
+    "navbar": "navbar-dark",
+    "sidebar": "sidebar-dark-purple",
 }
