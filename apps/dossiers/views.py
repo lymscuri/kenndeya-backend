@@ -465,7 +465,7 @@ def my_medical_record(request):
         'vaccinations',
         'surgeries',
         'hospitalisations'
-    ).filter(email=request.user.email).first()
+    ).filter(email=request.user.email).order_by("-created_at").first()
 
     if not patient:
         return Response({
