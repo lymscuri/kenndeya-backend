@@ -346,7 +346,11 @@ class LabTest(models.Model):
         ordering = ['-ordered_date']
 
     def __str__(self):
-        return f"{self.test_name} - {self.consultation.patient.full_name}"
+        if self.consultation:
+            return f"{self.test_name} - {self.consultation.patient.full_name}"
+        elif self.patient:
+            return f"{self.test_name} - {self.patient.full_name}"
+        return self.test_name
 
 
 class Vaccination(models.Model):

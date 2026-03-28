@@ -94,6 +94,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
     patient_name = serializers.CharField(source='patient.full_name', read_only=True)
     doctor_name = serializers.CharField(source='doctor.get_full_name', read_only=True)
     prescriptions = PrescriptionSerializer(many=True, read_only=True)
+    lab_tests = LabTestNestedSerializer(many=True, read_only=True)
     vital_signs = serializers.DictField(write_only=True, required=False)
 
     class Meta:
