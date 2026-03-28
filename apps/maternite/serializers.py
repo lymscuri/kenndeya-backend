@@ -183,15 +183,22 @@ class ChildSerializer(serializers.ModelSerializer):
             'complications', 'notes',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'pregnancy', 'created_at', 'updated_at']
 
     def validate_birth_date(self, value):
         """Valide que la date de naissance n'est pas dans le futur."""
-        from django.utils import timezone
-        if value > timezone.now():
-            raise serializers.ValidationError(
-                "La date de naissance ne peut pas être dans le futur."
-            )
+        from django.utils import timezone as tz
+        now = tz.now()
+        if hasattr(value, 'date'):
+            if value > now:
+                raise serializers.ValidationError(
+                    "La date de naissance ne peut pas être dans le futur."
+                )
+        else:
+            if value > now.date():
+                raise serializers.ValidationError(
+                    "La date de naissance ne peut pas être dans le futur."
+                )
         return value
 
 
