@@ -122,7 +122,7 @@ class ConsultationSerializer(serializers.ModelSerializer):
             'prescriptions', 'lab_tests',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'doctor', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'doctor', 'patient', 'created_at', 'updated_at']
 
     def validate(self, attrs):
         """
