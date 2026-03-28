@@ -287,7 +287,7 @@ def emergency_alert_detail(request, alert_id):
 
 
 @api_view(['PATCH'])
-@permission_classes([IsSecourist])
+@permission_classes([IsAuthenticated])
 def emergency_alert_assign(request, alert_id):
     """
     Assigne une alerte d'urgence au secouriste connecté.
@@ -336,7 +336,7 @@ def emergency_alert_assign(request, alert_id):
 
 
 @api_view(['PATCH'])
-@permission_classes([IsSecourist])
+@permission_classes([IsAuthenticated])
 def emergency_alert_update_status(request, alert_id):
     """
     Met à jour le statut d'une alerte d'urgence.
