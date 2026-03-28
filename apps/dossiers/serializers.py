@@ -70,6 +70,20 @@ class LabTestSerializer(serializers.ModelSerializer):
         return None
 
 
+class LabTestNestedSerializer(serializers.ModelSerializer):
+    """
+    Serializer imbriqué pour les examens de laboratoire dans consultations.
+    Version simplifiée avec uniquement les champs essentiels.
+    """
+    class Meta:
+        model = LabTest
+        fields = [
+            'id', 'test_name', 'test_type', 'status',
+            'ordered_date', 'completed_date', 'results', 'interpretation'
+        ]
+        read_only_fields = ['id']
+
+
 class ConsultationListSerializer(serializers.ModelSerializer):
     """
     Serializer pour la liste des consultations (version allégée).
@@ -165,20 +179,6 @@ class VaccinationSerializer(serializers.ModelSerializer):
                     "La date de la prochaine dose doit être postérieure à la date d'administration."
                 )
         return value
-
-
-class LabTestNestedSerializer(serializers.ModelSerializer):
-    """
-    Serializer imbriqué pour les examens de laboratoire dans consultations.
-    Version simplifiée avec uniquement les champs essentiels.
-    """
-    class Meta:
-        model = LabTest
-        fields = [
-            'id', 'test_name', 'test_type', 'status',
-            'ordered_date', 'completed_date', 'results', 'interpretation'
-        ]
-        read_only_fields = ['id']
 
 
 class ConsultationNestedSerializer(serializers.ModelSerializer):
