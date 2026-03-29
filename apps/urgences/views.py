@@ -179,13 +179,16 @@ def emergency_alert_create(request):
         alert = serializer.save(patient=request.user)
 
         # Envoyer une notification push aux médecins et secouristes
-        description = alert.description[:50] if alert.description else "Urgence signalée"
-        push_service.send_to_roles(
-            roles=['medecin', 'secourist', 'patient', 'doctor'],
-            title="🚨 Alerte SOS",
-            body=f"Urgence signalée : {description}",
-            data={"type": "emergency", "alertId": str(alert.id)}
-        )
+        try:
+            description = alert.description[:50] if alert.description else "Urgence signalée"
+            push_service.send_to_roles(
+                roles=['medecin', 'secourist', 'patient', 'doctor'],
+                title="🚨 Alerte SOS",
+                body=f"Urgence signalée : {description}",
+                data={"type": "emergency", "alertId": str(alert.id)}
+            )
+        except Exception as e:
+            print(f"[Warning] Notification failed: {e}")
 
         # TODO: Déclencher la notification WebSocket aux secouristes disponibles
 
