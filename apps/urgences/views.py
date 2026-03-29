@@ -298,7 +298,6 @@ def emergency_alert_assign(request, alert_id):
     PATCH /api/v1/urgences/alerts/:id/assign/
     """
     alert = get_object_or_404(EmergencyAlert, id=alert_id)
-    secourist = get_object_or_404(Secourist, user=request.user)
 
     # Vérifier que l'alerte est en attente
     if alert.status != 'pending':
@@ -311,19 +310,22 @@ def emergency_alert_assign(request, alert_id):
             }
         }, status=status.HTTP_400_BAD_REQUEST)
 
-    # Vérifier que le secouriste est disponible
-    if not secourist.is_available:
-        return Response({
-            'success': False,
-            'error': {
-                'code': 'unavailable',
-                'message': 'Vous n\'êtes pas disponible.',
-                'details': {}
-            }
-        }, status=status.HTTP_400_BAD_REQUEST)
+    # Si l'user a un profil Secourist, l'assigner
+    try:
+        secourist = Secourist.objects.get(user=request.user)
+        if not secourist.is_available:
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'unavailable',
+                    'message': 'Vous n\'êtes pas disponible.',
+                    'details': {}
+                }
+            }, status=status.HTTP_400_BAD_REQUEST)
+        alert.secourist = secourist
+    except Secourist.DoesNotExist:
+        pass  # médecin — on assigne sans profil secouriste
 
-    # Assigner l'alerte
-    alert.secourist = secourist
     alert.status = 'assigned'
     alert.assigned_at = timezone.now()
     alert.save()
@@ -347,18 +349,21 @@ def emergency_alert_update_status(request, alert_id):
     PATCH /api/v1/urgences/alerts/:id/status/
     """
     alert = get_object_or_404(EmergencyAlert, id=alert_id)
-    secourist = get_object_or_404(Secourist, user=request.user)
 
-    # Vérifier que le secouriste est assigné à cette alerte
-    if alert.secourist != secourist:
-        return Response({
-            'success': False,
-            'error': {
-                'code': 'permission_denied',
-                'message': 'Vous n\'êtes pas assigné à cette alerte.',
-                'details': {}
-            }
-        }, status=status.HTTP_403_FORBIDDEN)
+    # Vérifier les permissions : secouriste assigné ou médecin
+    try:
+        secourist = Secourist.objects.get(user=request.user)
+        if alert.secourist and alert.secourist != secourist:
+            return Response({
+                'success': False,
+                'error': {
+                    'code': 'permission_denied',
+                    'message': 'Vous n\'êtes pas assigné à cette alerte.',
+                    'details': {}
+                }
+            }, status=status.HTTP_403_FORBIDDEN)
+    except Secourist.DoesNotExist:
+        pass  # médecin — autorisé à changer le statut
 
     serializer = EmergencyAlertSerializer(alert, data=request.data, partial=True)
 
