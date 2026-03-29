@@ -187,8 +187,14 @@ class ChildSerializer(serializers.ModelSerializer):
 
     def validate_birth_date(self, value):
         """Valide que la date de naissance n'est pas dans le futur."""
+        from django.utils.dateparse import parse_datetime
         from django.utils import timezone
         now = timezone.now()
+        if isinstance(value, str):
+            value = parse_datetime(value) or value
+        if hasattr(value, 'tzinfo') and value.tzinfo is None:
+            from django.utils.timezone import make_aware
+            value = make_aware(value)
         if value > now:
             raise serializers.ValidationError(
                 "La date de naissance ne peut pas être dans le futur."
