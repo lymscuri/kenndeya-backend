@@ -127,6 +127,32 @@ def maternity_patient_list_create(request):
         maternity = MaternityPatient.objects.create(
             patient=patient,
         )
+
+        # Créer automatiquement la grossesse si DDR fournie
+        pregnancy = None
+        ddr_str = data.get('last_menstrual_period') or data.get('last_period_date')
+        if ddr_str:
+            try:
+                from datetime import datetime, timedelta
+                ddr = datetime.strptime(ddr_str, '%Y-%m-%d').date()
+                dpa_str = data.get('expected_delivery_date')
+                if dpa_str:
+                    dpa = datetime.strptime(dpa_str, '%Y-%m-%d').date()
+                else:
+                    dpa = ddr + timedelta(days=280)
+
+                pregnancy = Pregnancy.objects.create(
+                    maternity_patient=maternity,
+                    doctor=request.user,
+                    pregnancy_number=int(data.get('pregnancy_number', 1)),
+                    status='ongoing',
+                    last_menstrual_period=ddr,
+                    expected_delivery_date=dpa,
+                    weeks_of_gestation=data.get('weeks_of_gestation') or None,
+                )
+            except Exception as e:
+                print(f"[Warning] Pregnancy auto-create failed: {e}")
+
         return Response({
             'success': True,
             'message': 'Patiente maternité créée.',
@@ -135,6 +161,7 @@ def maternity_patient_list_create(request):
                 'maternity_id': str(maternity.id),
                 'first_name': patient.first_name,
                 'last_name': patient.last_name,
+                'pregnancy_id': str(pregnancy.id) if pregnancy else None,
             }
         }, status=201)
 
