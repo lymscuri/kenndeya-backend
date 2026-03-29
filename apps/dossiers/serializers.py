@@ -171,13 +171,28 @@ class VaccinationSerializer(serializers.ModelSerializer):
         read_only_fields = ['id', 'patient', 'doctor', 'created_at', 'updated_at']
 
     def validate_next_dose_date(self, value):
-        """Valide que la date de la prochaine dose est dans le futur."""
+        """Valide que la date de la prochaine dose est postérieure à la date d'administration."""
         if value:
             date_administered = self.initial_data.get('date_administered')
-            if date_administered and value <= date_administered:
-                raise serializers.ValidationError(
-                    "La date de la prochaine dose doit être postérieure à la date d'administration."
-                )
+            if date_administered:
+                from datetime import date, datetime
+                if isinstance(date_administered, str):
+                    try:
+                        date_administered = datetime.strptime(
+                            date_administered, '%Y-%m-%d'
+                        ).date()
+                    except (ValueError, TypeError):
+                        return value
+                if isinstance(value, str):
+                    try:
+                        value = datetime.strptime(value, '%Y-%m-%d').date()
+                    except (ValueError, TypeError):
+                        return value
+                if value <= date_administered:
+                    raise serializers.ValidationError(
+                        "La date de la prochaine dose doit être "
+                        "postérieure à la date d'administration."
+                    )
         return value
 
 
