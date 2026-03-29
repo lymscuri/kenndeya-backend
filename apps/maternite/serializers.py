@@ -170,7 +170,7 @@ class ChildSerializer(serializers.ModelSerializer):
     """
     Serializer pour les enfants.
     """
-    full_name = serializers.CharField(source='full_name', read_only=True)
+    full_name = serializers.CharField(read_only=True)
     mother_name = serializers.CharField(source='pregnancy.maternity_patient.patient.full_name', read_only=True)
 
     class Meta:
