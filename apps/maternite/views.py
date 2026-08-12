@@ -38,45 +38,112 @@ def maternity_patient_list_create(request):
             'pregnancies',
             'pregnancies__weekly_checkups',
             'pregnancies__prenatal_consultations',
+            'pregnancies__prenatal_exams',
             'pregnancies__children',
+            'pregnancies__children__growth_records',
+            'pregnancies__children__vaccines',
         )
-        
+
         results = []
         for mp in maternity_patients:
             patient = mp.patient
             pregnancy = mp.pregnancies.filter(status='ongoing').first() or mp.pregnancies.first()
             weekly_checkups = []
             prenatal_consultations = []
+            prenatal_exams = []
             children = []
-            
+            child_growth = []
+            child_vaccines = []
+
             if pregnancy:
+                # WeeklyCheckup : on ne renvoie que les champs qui existent réellement
+                # dans le modèle. Le modèle n'a NI "fetal_movements" (seulement
+                # fetal_heart_rate = BCF) NI "symptoms" (le champ voisin est
+                # "complaints" = plaintes textuelles). "observations" n'est pas
+                # l'humeur ("mood") mais une note clinique du médecin.
                 weekly_checkups = [{
                     'id': str(wc.id),
-                    'week': wc.week_number,
-                    'date': str(wc.checkup_date),
-                    'weight': float(wc.weight) if wc.weight else None,
-                    'systolic_bp': wc.blood_pressure_systolic,
-                    'diastolic_bp': wc.blood_pressure_diastolic,
-                    'fetal_movements': wc.fetal_heart_rate,
-                    'symptoms': [],
-                    'mood': wc.observations,
+                    'week_number': wc.week_number,
+                    'checkup_date': str(wc.checkup_date),
+                    'weight': float(wc.weight) if wc.weight is not None else None,
+                    'blood_pressure_systolic': wc.blood_pressure_systolic,
+                    'blood_pressure_diastolic': wc.blood_pressure_diastolic,
+                    'uterine_height': float(wc.uterine_height) if wc.uterine_height is not None else None,
+                    'fetal_heart_rate': wc.fetal_heart_rate,
+                    'complaints': wc.complaints,
+                    'observations': wc.observations,
+                    'recommendations': wc.recommendations,
+                    'next_appointment': str(wc.next_appointment) if wc.next_appointment else None,
                 } for wc in pregnancy.weekly_checkups.all()]
-                
+
                 prenatal_consultations = [{
                     'id': str(c.id),
-                    'week_target': c.consultation_number,
+                    'consultation_number': c.consultation_number,
+                    'week_of_gestation': c.week_of_gestation,
                     'status': c.status,
                     'scheduled_date': str(c.scheduled_date) if c.scheduled_date else None,
-                    'done_date': str(c.consultation_date) if c.consultation_date else None,
+                    'consultation_date': str(c.consultation_date) if c.consultation_date else None,
                 } for c in pregnancy.prenatal_consultations.all()]
-                
-                children = [{
-                    'id': str(child.id),
-                    'first_name': child.first_name,
-                    'last_name': child.last_name,
-                    'birth_date': str(child.birth_date),
-                } for child in pregnancy.children.all()]
-            
+
+                prenatal_exams = [{
+                    'id': str(e.id),
+                    'exam_name': e.exam_name,
+                    'exam_type': e.exam_type,
+                    'status': e.status,
+                    'ordered_date': str(e.ordered_date),
+                    'completed_date': str(e.completed_date) if e.completed_date else None,
+                    'results': e.results,
+                    'interpretation': e.interpretation,
+                    'prenatal_consultation': str(e.prenatal_consultation_id) if e.prenatal_consultation_id else None,
+                } for e in pregnancy.prenatal_exams.all()]
+
+                for child in pregnancy.children.all():
+                    children.append({
+                        'id': str(child.id),
+                        'first_name': child.first_name,
+                        'last_name': child.last_name,
+                        'gender': child.gender,
+                        'birth_date': str(child.birth_date),
+                        'birth_weight': float(child.birth_weight) if child.birth_weight is not None else None,
+                        'birth_height': float(child.birth_height) if child.birth_height is not None else None,
+                        'head_circumference': float(child.head_circumference) if child.head_circumference is not None else None,
+                        'apgar_score_1min': child.apgar_score_1min,
+                        'apgar_score_5min': child.apgar_score_5min,
+                        'complications': child.complications,
+                        'notes': child.notes,
+                    })
+
+                    for g in child.growth_records.all():
+                        child_growth.append({
+                            'id': str(g.id),
+                            'child': str(child.id),
+                            'checkup_date': str(g.checkup_date),
+                            'age_in_months': g.age_in_months,
+                            'weight': float(g.weight) if g.weight is not None else None,
+                            'height': float(g.height) if g.height is not None else None,
+                            'head_circumference': float(g.head_circumference) if g.head_circumference is not None else None,
+                            'nutritional_status': g.nutritional_status,
+                            'developmental_milestones': g.developmental_milestones,
+                            'observations': g.observations,
+                            'recommendations': g.recommendations,
+                            'next_appointment': str(g.next_appointment) if g.next_appointment else None,
+                        })
+
+                    for v in child.vaccines.all():
+                        child_vaccines.append({
+                            'id': str(v.id),
+                            'child': str(child.id),
+                            'vaccine_name': v.vaccine_name,
+                            'vaccine_type': v.vaccine_type,
+                            'dose_number': v.dose_number,
+                            'date_administered': str(v.date_administered),
+                            'next_dose_date': str(v.next_dose_date) if v.next_dose_date else None,
+                            'batch_number': v.batch_number,
+                            'manufacturer': v.manufacturer,
+                            'site': v.site,
+                            'notes': v.notes,
+                        })
+
             results.append({
                 'id': str(patient.id),
                 'maternity_id': str(mp.id),
@@ -102,7 +169,10 @@ def maternity_patient_list_create(request):
                 } if pregnancy else None,
                 'weekly_checkups': weekly_checkups,
                 'prenatal_consultations': prenatal_consultations,
+                'prenatal_exams': prenatal_exams,
                 'children': children,
+                'child_growth': child_growth,
+                'child_vaccines': child_vaccines,
                 'alert_level': 'vert',
             })
         
