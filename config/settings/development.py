@@ -9,10 +9,14 @@ from .base import *
 DEBUG = True
 
 # HOSTS AUTORISÉS EN DÉVELOPPEMENT
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', '172.20.10.6']
 
 # SÉCURITÉ (Relâchée pour le développement)
 CORS_ALLOW_ALL_ORIGINS = False  # On garde les origines définies dans base.py
+CORS_ALLOWED_ORIGINS = list(CORS_ALLOWED_ORIGINS) + [
+    'http://172.20.10.6:3000',
+    'http://172.20.10.6:8081',
+]
 
 # EMAIL (Console backend pour le développement)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
