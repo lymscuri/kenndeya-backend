@@ -9,14 +9,16 @@ from .base import *
 DEBUG = True
 
 # HOSTS AUTORISÉS EN DÉVELOPPEMENT
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]', '172.20.10.6']
-
-# SÉCURITÉ (Relâchée pour le développement)
-CORS_ALLOW_ALL_ORIGINS = False  # On garde les origines définies dans base.py
-CORS_ALLOWED_ORIGINS = list(CORS_ALLOWED_ORIGINS) + [
-    'http://172.20.10.6:3000',
-    'http://172.20.10.6:8081',
-]
+# On ouvre à tous les hosts UNIQUEMENT si DEBUG est vrai. L'IP LAN du
+# poste de dev change à chaque reconnexion (partage de connexion,
+# hotspot, Wi-Fi différent) — figer une IP casse le workflow. Ce fichier
+# n'est jamais chargé en production (settings.production reste distinct).
+if DEBUG:
+    ALLOWED_HOSTS = ['*']
+    CORS_ALLOW_ALL_ORIGINS = True
+else:
+    ALLOWED_HOSTS = ['localhost', '127.0.0.1', '[::1]']
+    CORS_ALLOW_ALL_ORIGINS = False
 
 # EMAIL (Console backend pour le développement)
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
