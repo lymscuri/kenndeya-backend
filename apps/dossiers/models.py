@@ -266,10 +266,22 @@ class Prescription(models.Model):
         verbose_name='Consultation'
     )
 
-    medication_name = models.CharField('Nom du médicament', max_length=200)
+    medication_name = models.CharField('Nom du médicament (DCI)', max_length=200)
+    commercial_name = models.CharField('Nom commercial', max_length=200, blank=True, default='')
     dosage = models.CharField('Posologie', max_length=100)
     frequency = models.CharField('Fréquence', max_length=100)
     duration = models.CharField('Durée', max_length=100)
+    route = models.CharField(
+        'Voie d\'administration',
+        max_length=20,
+        choices=[
+            ('oral', 'Orale'),
+            ('injectable', 'Injectable'),
+            ('topique', 'Topique'),
+        ],
+        blank=True,
+        default='',
+    )
     instructions = models.TextField('Instructions', blank=True, default='')
 
     # Timestamps

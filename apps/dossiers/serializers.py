@@ -39,8 +39,9 @@ class PrescriptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Prescription
         fields = [
-            'id', 'consultation', 'medication_name', 'dosage',
-            'frequency', 'duration', 'instructions', 'created_at', 'updated_at'
+            'id', 'consultation', 'medication_name', 'commercial_name',
+            'dosage', 'frequency', 'duration', 'route', 'instructions',
+            'created_at', 'updated_at'
         ]
         read_only_fields = ['id', 'consultation', 'created_at', 'updated_at']
 
@@ -214,6 +215,7 @@ class ConsultationNestedSerializer(serializers.ModelSerializer):
     spo2 = serializers.SerializerMethodField()
     prochain_rdv = serializers.SerializerMethodField()
     lab_tests = LabTestNestedSerializer(many=True, read_only=True)
+    prescriptions = PrescriptionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Consultation
@@ -221,7 +223,7 @@ class ConsultationNestedSerializer(serializers.ModelSerializer):
             'id', 'date', 'motif', 'motif_detail', 'diagnostic', 'traitement',
             'recommandations', 'poids', 'taille', 'tension_systolique',
             'tension_diastolique', 'frequence_cardiaque', 'temperature',
-            'spo2', 'prochain_rdv', 'lab_tests'
+            'spo2', 'prochain_rdv', 'lab_tests', 'prescriptions'
         ]
         read_only_fields = ['id']
 
@@ -327,7 +329,9 @@ class PatientSerializer(serializers.ModelSerializer):
     full_name = serializers.CharField(read_only=True)
     age = serializers.IntegerField(read_only=True)
     doctor_name = serializers.CharField(source='doctor.get_full_name', read_only=True)
-    consultations = ConsultationListSerializer(many=True, read_only=True)
+    # ConsultationSerializer expose les prescriptions et les vraies
+    # constantes vitales — nécessaire pour l'affichage web du dossier.
+    consultations = ConsultationSerializer(many=True, read_only=True)
     vaccinations = VaccinationSerializer(many=True, read_only=True)
     surgeries = ChirurgieSerializer(many=True, read_only=True)
     hospitalisations = HospitalisationSerializer(many=True, read_only=True)
