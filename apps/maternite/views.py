@@ -44,16 +44,25 @@ def maternity_patient_list_create(request):
             'pregnancies__children__vaccines',
         )
 
+        from .alerts import evaluate_pregnancy
+
         results = []
         for mp in maternity_patients:
             patient = mp.patient
-            pregnancy = mp.pregnancies.filter(status='ongoing').first() or mp.pregnancies.first()
+            # Itère sur la relation prefetchée pour éviter de relancer un
+            # SELECT — .filter().first() casserait le cache prefetch.
+            prefetched_pregnancies = list(mp.pregnancies.all())
+            pregnancy = next(
+                (p for p in prefetched_pregnancies if p.status == 'ongoing'),
+                prefetched_pregnancies[0] if prefetched_pregnancies else None,
+            )
             weekly_checkups = []
             prenatal_consultations = []
             prenatal_exams = []
             children = []
             child_growth = []
             child_vaccines = []
+            alert_level, alert_reasons = evaluate_pregnancy(pregnancy)
 
             if pregnancy:
                 # WeeklyCheckup : on ne renvoie que les champs qui existent réellement
@@ -176,7 +185,8 @@ def maternity_patient_list_create(request):
                 'children': children,
                 'child_growth': child_growth,
                 'child_vaccines': child_vaccines,
-                'alert_level': 'vert',
+                'alert_level': alert_level,
+                'alert_reasons': alert_reasons,
             })
         
         return Response({
