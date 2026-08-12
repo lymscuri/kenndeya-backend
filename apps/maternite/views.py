@@ -65,8 +65,8 @@ def maternity_patient_list_create(request):
                 prenatal_consultations = [{
                     'id': str(c.id),
                     'week_target': c.consultation_number,
-                    'status': 'effectuee' if c.consultation_date else 'planifiee',
-                    'scheduled_date': str(c.consultation_date) if c.consultation_date else None,
+                    'status': c.status,
+                    'scheduled_date': str(c.scheduled_date) if c.scheduled_date else None,
                     'done_date': str(c.consultation_date) if c.consultation_date else None,
                 } for c in pregnancy.prenatal_consultations.all()]
                 
