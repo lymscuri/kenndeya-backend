@@ -256,6 +256,9 @@ CELERY_TIMEZONE = TIME_ZONE
 CELERY_BEAT_SCHEDULER = 'django_celery_beat.schedulers:DatabaseScheduler'
 
 # CONFIGURATION SMS (Twilio)
+# SMS_ENABLED : interrupteur explicite d'envoi. False par défaut — l'envoi
+# de SMS réels doit être un acte volontaire, jamais une valeur par défaut.
+SMS_ENABLED = env.bool('SMS_ENABLED', default=False)
 TWILIO_ACCOUNT_SID = env('TWILIO_ACCOUNT_SID', default='')
 TWILIO_AUTH_TOKEN = env('TWILIO_AUTH_TOKEN', default='')
 TWILIO_PHONE_NUMBER = env('TWILIO_PHONE_NUMBER', default='')

@@ -6,6 +6,13 @@ logger = logging.getLogger(__name__)
 
 def send_sms(to_phone: str, message: str) -> dict:
     """Envoyer un SMS via Twilio."""
+    # Interrupteur global — aucun appel Twilio sauf SMS_ENABLED explicitement True.
+    if not getattr(settings, 'SMS_ENABLED', False):
+        logger.warning(
+            f'[SMS SIMULÉ — non envoyé] destinataire={to_phone} message={message!r}'
+        )
+        return {'success': True, 'simulated': True, 'sid': 'SIMULATED'}
+
     try:
         client = Client(
             settings.TWILIO_ACCOUNT_SID,

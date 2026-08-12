@@ -3,7 +3,9 @@ Commande Django pour charger des données de test.
 Usage: python manage.py seed_data
 """
 
-from django.core.management.base import BaseCommand
+import os
+from django.core.management.base import BaseCommand, CommandError
+from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 from datetime import timedelta, datetime
@@ -17,6 +19,16 @@ from apps.reminders.models import SmsReminder
 
 User = get_user_model()
 
+# Mot de passe par défaut des comptes de test. Surchargeable via
+# SEED_DATA_PASSWORD dans l'environnement pour éviter d'avoir un
+# secret en dur non modifiable.
+SEED_PASSWORD = os.environ.get('SEED_DATA_PASSWORD', 'password123')
+
+# Préfixe impossible en Guinée : +224 suivi de 00... Aucun opérateur
+# n'attribue de numéro commençant par 0 après l'indicatif — garantit
+# qu'aucun envoi accidentel ne partira sur un vrai abonné.
+_FAKE_PHONE = lambda suffix: f'+22400000{suffix:04d}'
+
 
 class Command(BaseCommand):
     help = 'Charge des données de test dans la base de données'
@@ -27,8 +39,21 @@ class Command(BaseCommand):
             action='store_true',
             help='Supprime toutes les données avant de charger les nouvelles',
         )
+        parser.add_argument(
+            '--force',
+            action='store_true',
+            help='Autorise l\'exécution même quand DEBUG=False (danger)',
+        )
 
     def handle(self, *args, **options):
+        # Garde-fou : refuser de seeder une base non-dev sans confirmation explicite.
+        if not settings.DEBUG and not options['force']:
+            raise CommandError(
+                'seed_data refuse de s\'exécuter avec DEBUG=False. '
+                'Cette commande crée des utilisateurs et rappels SMS de test. '
+                'Utiliser --force pour passer outre en toute connaissance de cause.'
+            )
+
         if options['clear']:
             self.stdout.write(self.style.WARNING('Suppression des données existantes...'))
             self.clear_data()
@@ -80,9 +105,9 @@ class Command(BaseCommand):
         """Crée des médecins de test."""
         doctors = []
         doctor_data = [
-            {'first_name': 'Amadou', 'last_name': 'Diallo', 'email': 'amadou.diallo@kendeya.gn', 'phone': '+224621234567'},
-            {'first_name': 'Fatoumata', 'last_name': 'Bah', 'email': 'fatoumata.bah@kendeya.gn', 'phone': '+224622345678'},
-            {'first_name': 'Mamadou', 'last_name': 'Camara', 'email': 'mamadou.camara@kendeya.gn', 'phone': '+224623456789'},
+            {'first_name': 'Amadou', 'last_name': 'Diallo', 'email': 'amadou.diallo@kendeya.gn', 'phone': _FAKE_PHONE(1)},
+            {'first_name': 'Fatoumata', 'last_name': 'Bah', 'email': 'fatoumata.bah@kendeya.gn', 'phone': _FAKE_PHONE(2)},
+            {'first_name': 'Mamadou', 'last_name': 'Camara', 'email': 'mamadou.camara@kendeya.gn', 'phone': _FAKE_PHONE(3)},
         ]
 
         for data in doctor_data:
@@ -97,7 +122,7 @@ class Command(BaseCommand):
                 }
             )
             if created:
-                doctor.set_password('password123')
+                doctor.set_password(SEED_PASSWORD)
                 doctor.save()
             doctors.append(doctor)
 
@@ -108,11 +133,11 @@ class Command(BaseCommand):
         """Crée des patients de test."""
         patients = []
         patient_data = [
-            {'first_name': 'Aissatou', 'last_name': 'Sylla', 'email': 'aissatou.sylla@gmail.com', 'phone': '+224660123456', 'gender': 'F'},
-            {'first_name': 'Ibrahim', 'last_name': 'Kouyate', 'email': 'ibrahim.kouyate@gmail.com', 'phone': '+224660234567', 'gender': 'M'},
-            {'first_name': 'Mariama', 'last_name': 'Conte', 'email': 'mariama.conte@gmail.com', 'phone': '+224660345678', 'gender': 'F'},
-            {'first_name': 'Sekou', 'last_name': 'Toure', 'email': 'sekou.toure@gmail.com', 'phone': '+224660456789', 'gender': 'M'},
-            {'first_name': 'Hadja', 'last_name': 'Barry', 'email': 'hadja.barry@gmail.com', 'phone': '+224660567890', 'gender': 'F'},
+            {'first_name': 'Aissatou', 'last_name': 'Sylla', 'email': 'aissatou.sylla@gmail.com', 'phone': _FAKE_PHONE(4), 'gender': 'F'},
+            {'first_name': 'Ibrahim', 'last_name': 'Kouyate', 'email': 'ibrahim.kouyate@gmail.com', 'phone': _FAKE_PHONE(5), 'gender': 'M'},
+            {'first_name': 'Mariama', 'last_name': 'Conte', 'email': 'mariama.conte@gmail.com', 'phone': _FAKE_PHONE(6), 'gender': 'F'},
+            {'first_name': 'Sekou', 'last_name': 'Toure', 'email': 'sekou.toure@gmail.com', 'phone': _FAKE_PHONE(7), 'gender': 'M'},
+            {'first_name': 'Hadja', 'last_name': 'Barry', 'email': 'hadja.barry@gmail.com', 'phone': _FAKE_PHONE(8), 'gender': 'F'},
         ]
 
         for data in patient_data:
@@ -127,7 +152,7 @@ class Command(BaseCommand):
                 }
             )
             if created:
-                patient.set_password('password123')
+                patient.set_password(SEED_PASSWORD)
                 patient.save()
             patients.append(patient)
 
@@ -138,8 +163,8 @@ class Command(BaseCommand):
         """Crée des secouristes de test."""
         secourists_users = []
         secourist_data = [
-            {'first_name': 'Alpha', 'last_name': 'Conde', 'email': 'alpha.conde@secours.gn', 'phone': '+224670123456'},
-            {'first_name': 'Nene', 'last_name': 'Keita', 'email': 'nene.keita@secours.gn', 'phone': '+224670234567'},
+            {'first_name': 'Alpha', 'last_name': 'Conde', 'email': 'alpha.conde@secours.gn', 'phone': _FAKE_PHONE(9)},
+            {'first_name': 'Nene', 'last_name': 'Keita', 'email': 'nene.keita@secours.gn', 'phone': _FAKE_PHONE(10)},
         ]
 
         for data in secourist_data:
@@ -154,7 +179,7 @@ class Command(BaseCommand):
                 }
             )
             if created:
-                user.set_password('password123')
+                user.set_password(SEED_PASSWORD)
                 user.save()
 
             # Créer le profil secouriste
@@ -181,7 +206,7 @@ class Command(BaseCommand):
                 'name': 'Hôpital National Donka',
                 'city': 'Conakry',
                 'address': 'Commune de Dixinn, Conakry',
-                'phone': '+224664001122',
+                'phone': _FAKE_PHONE(11),
                 'hospital_type': 'public',
                 'has_emergency_room': True,
                 'has_maternity': True,
@@ -191,7 +216,7 @@ class Command(BaseCommand):
                 'name': 'Clinique Pasteur',
                 'city': 'Conakry',
                 'address': 'Commune de Kaloum, Conakry',
-                'phone': '+224664112233',
+                'phone': _FAKE_PHONE(12),
                 'hospital_type': 'private',
                 'has_emergency_room': True,
                 'has_maternity': False,
@@ -201,7 +226,7 @@ class Command(BaseCommand):
                 'name': 'Centre de Santé de Matoto',
                 'city': 'Conakry',
                 'address': 'Commune de Matoto, Conakry',
-                'phone': '+224664223344',
+                'phone': _FAKE_PHONE(13),
                 'hospital_type': 'health_center',
                 'has_emergency_room': False,
                 'has_maternity': True,

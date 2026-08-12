@@ -33,10 +33,17 @@ class TwilioSMSService:
         Envoie un SMS via Twilio.
         Retourne : { success, message_sid, error }
         """
+        # Interrupteur global — aucun appel Twilio sauf SMS_ENABLED explicitement True.
+        if not getattr(settings, 'SMS_ENABLED', False):
+            logger.warning(
+                f'[SMS SIMULÉ — non envoyé] destinataire={to_number} message={message!r}'
+            )
+            return {'success': True, 'simulated': True, 'message_sid': 'SIMULATED'}
+
         if not self.is_configured():
             logger.error('[Twilio] Service non configuré — variables manquantes.')
             return {'success': False, 'error': 'Service SMS non configuré.'}
- 
+
         try:
             msg = self.client.messages.create(
                 body=message,
@@ -45,7 +52,7 @@ class TwilioSMSService:
             )
             logger.info(f'[Twilio] SMS envoyé à {to_number} — SID: {msg.sid}')
             return {'success': True, 'message_sid': msg.sid}
- 
+
         except Exception as e:
             error_msg = str(e)
             logger.error(f'[Twilio] Échec envoi SMS à {to_number} : {error_msg}')
