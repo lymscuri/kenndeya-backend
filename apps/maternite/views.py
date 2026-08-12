@@ -70,6 +70,9 @@ def maternity_patient_list_create(request):
                     'blood_pressure_diastolic': wc.blood_pressure_diastolic,
                     'uterine_height': float(wc.uterine_height) if wc.uterine_height is not None else None,
                     'fetal_heart_rate': wc.fetal_heart_rate,
+                    'fetal_movements': wc.fetal_movements or None,
+                    'symptoms': wc.symptoms or [],
+                    'mood': wc.mood or None,
                     'complaints': wc.complaints,
                     'observations': wc.observations,
                     'recommendations': wc.recommendations,
@@ -422,17 +425,46 @@ def pregnancy_detail(request, patient_id, pregnancy_id):
 # ========== WEEKLY CHECKUPS ==========
 
 @api_view(['GET', 'POST'])
-@permission_classes([IsDoctor])
+@permission_classes([IsAuthenticated])
 def weekly_checkup_list_create(request, patient_id, pregnancy_id):
     """
     Liste toutes les consultations hebdomadaires ou crée une nouvelle consultation.
 
     GET /api/v1/maternite/patients/:id/pregnancies/:pid/weekly-checkups/
     POST /api/v1/maternite/patients/:id/pregnancies/:pid/weekly-checkups/
+
+    Contrôle d'accès :
+    - Médecin (role in doctor/medecin) : accès uniquement si patient.doctor == request.user.
+    - Patiente (role == 'patient') : accès uniquement si patient.email == request.user.email
+      (même critère que my_maternity_record). Ne peut donc écrire QUE sur sa
+      propre grossesse.
+    - Tout autre rôle (secouriste, etc.) : 403.
+
+    Le doctor enregistré sur le checkup reste celui de la grossesse
+    (pregnancy.doctor), y compris quand c'est la patiente elle-même qui
+    remplit le suivi — c'est la même personne qui la suit.
     """
-    patient = get_object_or_404(Patient, id=patient_id, doctor=request.user)
+    patient = get_object_or_404(Patient, id=patient_id)
     maternity_patient = get_object_or_404(MaternityPatient, patient=patient)
     pregnancy = get_object_or_404(Pregnancy, id=pregnancy_id, maternity_patient=maternity_patient)
+
+    user = request.user
+    user_role = getattr(user, 'role', None)
+    is_doctor = user_role in ('doctor', 'medecin') and patient.doctor_id == user.id
+    is_owner_patient = (
+        user_role == 'patient'
+        and patient.email
+        and patient.email.lower() == (user.email or '').lower()
+    )
+
+    if not (is_doctor or is_owner_patient):
+        return Response({
+            'success': False,
+            'error': {
+                'code': 'permission_denied',
+                'message': "Vous n'avez pas accès à cette grossesse.",
+            }
+        }, status=status.HTTP_403_FORBIDDEN)
 
     if request.method == 'GET':
         checkups = WeeklyCheckup.objects.filter(pregnancy=pregnancy)
@@ -446,7 +478,7 @@ def weekly_checkup_list_create(request, patient_id, pregnancy_id):
         serializer = WeeklyCheckupSerializer(data=request.data)
 
         if serializer.is_valid():
-            checkup = serializer.save(doctor=request.user, pregnancy=pregnancy)
+            checkup = serializer.save(doctor=pregnancy.doctor, pregnancy=pregnancy)
 
             return Response({
                 'success': True,

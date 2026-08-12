@@ -84,6 +84,7 @@ class WeeklyCheckupSerializer(serializers.ModelSerializer):
             'checkup_date', 'week_number', 'weight',
             'blood_pressure_systolic', 'blood_pressure_diastolic',
             'uterine_height', 'fetal_heart_rate',
+            'fetal_movements', 'symptoms', 'mood',
             'complaints', 'observations', 'recommendations',
             'next_appointment', 'created_at', 'updated_at'
         ]

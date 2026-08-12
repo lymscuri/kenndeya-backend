@@ -192,6 +192,37 @@ class WeeklyCheckup(models.Model):
         validators=[MinValueValidator(0)],
         verbose_name="Fréquence cardiaque fœtale (bpm)"
     )
+    fetal_movements = models.CharField(
+        max_length=20,
+        choices=[
+            ('actifs', 'Actifs'),
+            ('normaux', 'Normaux'),
+            ('reduits', 'Réduits'),
+            ('absents', 'Absents'),
+        ],
+        blank=True,
+        default='',
+        verbose_name="Mouvements fœtaux perçus par la patiente",
+    )
+    # Symptômes déclarés par la patiente. Stocké en JSONField pour rester
+    # cohérent avec les autres listes libres du projet (Patient.personal_history,
+    # family_history, life_habits sont aussi des JSONField).
+    symptoms = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Symptômes déclarés",
+    )
+    mood = models.CharField(
+        max_length=20,
+        choices=[
+            ('bien', 'Bien'),
+            ('fatigue', 'Fatiguée'),
+            ('anxieux', 'Anxieuse'),
+        ],
+        blank=True,
+        default='',
+        verbose_name="Humeur générale",
+    )
     complaints = models.TextField(
         blank=True,
         default='',
