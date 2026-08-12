@@ -245,7 +245,26 @@ class PrenatalConsultation(models.Model):
         related_name='prenatal_consultations_conducted',
         verbose_name="Médecin"
     )
-    consultation_date = models.DateTimeField(verbose_name="Date de consultation")
+    consultation_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Date de consultation",
+    )
+    scheduled_date = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Date planifiée",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=[
+            ('planifiee', 'Planifiée'),
+            ('effectuee', 'Effectuée'),
+            ('annulee', 'Annulée'),
+        ],
+        default='planifiee',
+        verbose_name="Statut",
+    )
     consultation_number = models.IntegerField(
         validators=[MinValueValidator(1)],
         verbose_name="Numéro de CPN"

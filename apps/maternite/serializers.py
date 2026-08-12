@@ -142,7 +142,8 @@ class PrenatalConsultationSerializer(serializers.ModelSerializer):
         model = PrenatalConsultation
         fields = [
             'id', 'pregnancy', 'patient_name', 'doctor', 'doctor_name',
-            'consultation_date', 'consultation_number', 'week_of_gestation',
+            'consultation_date', 'scheduled_date', 'status',
+            'consultation_number', 'week_of_gestation',
             'weight', 'blood_pressure_systolic', 'blood_pressure_diastolic', 'temperature',
             'uterine_height', 'fetal_heart_rate', 'fetal_presentation', 'edema',
             'complaints', 'clinical_findings', 'diagnosis', 'treatment',
