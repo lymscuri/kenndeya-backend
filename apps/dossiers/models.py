@@ -220,6 +220,16 @@ class Consultation(models.Model):
         null=True,
         blank=True
     )
+    oxygen_saturation = models.IntegerField(
+        'Saturation en oxygène (SpO2 %)',
+        null=True,
+        blank=True,
+    )
+    respiratory_rate = models.IntegerField(
+        'Fréquence respiratoire (cycles/min)',
+        null=True,
+        blank=True,
+    )
     weight = models.DecimalField(
         'Poids (kg)',
         max_digits=5,
@@ -233,6 +243,11 @@ class Consultation(models.Model):
         decimal_places=2,
         null=True,
         blank=True
+    )
+    next_appointment = models.DateTimeField(
+        'Prochain rendez-vous',
+        null=True,
+        blank=True,
     )
 
     # Timestamps

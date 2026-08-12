@@ -118,7 +118,8 @@ class ConsultationSerializer(serializers.ModelSerializer):
             'id', 'patient', 'patient_name', 'doctor', 'doctor_name',
             'date', 'reason', 'symptoms', 'diagnosis', 'treatment', 'notes',
             'temperature', 'blood_pressure_systolic', 'blood_pressure_diastolic',
-            'heart_rate', 'weight', 'height',
+            'heart_rate', 'oxygen_saturation', 'respiratory_rate',
+            'weight', 'height', 'next_appointment',
             'vital_signs',
             'prescriptions', 'lab_tests',
             'created_at', 'updated_at'
@@ -199,41 +200,22 @@ class VaccinationSerializer(serializers.ModelSerializer):
 
 class ConsultationNestedSerializer(serializers.ModelSerializer):
     """
-    Serializer imbriqué pour les consultations dans my-record.
-    Retourne les consultations avec les noms de champs attendus par le frontend.
+    Serializer imbriqué pour les consultations dans les listes patient.
+    Vocabulaire strictement aligné sur le modèle (anglais), sans alias.
     """
-    motif = serializers.CharField(source='reason', read_only=True)
-    motif_detail = serializers.CharField(source='symptoms', read_only=True)
-    diagnostic = serializers.CharField(source='diagnosis', read_only=True)
-    traitement = serializers.CharField(source='treatment', read_only=True)
-    recommandations = serializers.CharField(source='notes', read_only=True)
-    poids = serializers.DecimalField(source='weight', max_digits=5, decimal_places=2, read_only=True)
-    taille = serializers.DecimalField(source='height', max_digits=5, decimal_places=2, read_only=True)
-    tension_systolique = serializers.IntegerField(source='blood_pressure_systolic', read_only=True)
-    tension_diastolique = serializers.IntegerField(source='blood_pressure_diastolic', read_only=True)
-    frequence_cardiaque = serializers.IntegerField(source='heart_rate', read_only=True)
-    spo2 = serializers.SerializerMethodField()
-    prochain_rdv = serializers.SerializerMethodField()
     lab_tests = LabTestNestedSerializer(many=True, read_only=True)
     prescriptions = PrescriptionSerializer(many=True, read_only=True)
 
     class Meta:
         model = Consultation
         fields = [
-            'id', 'date', 'motif', 'motif_detail', 'diagnostic', 'traitement',
-            'recommandations', 'poids', 'taille', 'tension_systolique',
-            'tension_diastolique', 'frequence_cardiaque', 'temperature',
-            'spo2', 'prochain_rdv', 'lab_tests', 'prescriptions'
+            'id', 'date', 'reason', 'symptoms', 'diagnosis', 'treatment', 'notes',
+            'weight', 'height', 'blood_pressure_systolic', 'blood_pressure_diastolic',
+            'heart_rate', 'temperature', 'oxygen_saturation', 'respiratory_rate',
+            'next_appointment',
+            'lab_tests', 'prescriptions',
         ]
         read_only_fields = ['id']
-
-    def get_spo2(self, obj):
-        """SpO2 n'existe pas dans le modèle, retourne None."""
-        return None
-
-    def get_prochain_rdv(self, obj):
-        """Prochain RDV n'existe pas dans le modèle, retourne None."""
-        return None
 
 
 class VaccinationNestedSerializer(serializers.ModelSerializer):

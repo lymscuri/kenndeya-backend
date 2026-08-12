@@ -95,11 +95,16 @@ def patient_detail(request, patient_id):
     DELETE /api/v1/dossiers/patients/:id/
     """
     if request.method == 'GET':
-        # Optimiser avec prefetch_related pour GET
+        # Optimiser avec prefetch_related pour GET.
+        # ConsultationSerializer expose prescriptions et lab_tests en nested,
+        # donc on les prefetch pour éviter le N+1 (1 SELECT par consultation
+        # sur chacune de ces relations).
         patient = get_object_or_404(
             Patient.objects.prefetch_related(
                 'consultations',
                 'consultations__doctor',
+                'consultations__prescriptions',
+                'consultations__lab_tests',
                 'vaccinations',
                 'vaccinations__doctor',
                 'surgeries',
