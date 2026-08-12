@@ -167,12 +167,12 @@ def maternity_patient_list_create(request):
 
 
 @api_view(['GET'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsDoctor])
 def maternity_patient_detail_simple(request, patient_id):
     """GET /api/v1/maternity/patients/:id/"""
     from apps.dossiers.models import Patient
     from django.shortcuts import get_object_or_404
-    patient = get_object_or_404(Patient, id=patient_id)
+    patient = get_object_or_404(Patient, id=patient_id, doctor=request.user)
     return Response({
         'success': True,
         'data': {

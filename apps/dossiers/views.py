@@ -500,13 +500,14 @@ class ChirurgieListCreateView(generics.ListCreateAPIView):
     POST /api/v1/dossiers/patients/:id/chirurgies/
     """
     serializer_class = ChirurgieSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
-        return Chirurgie.objects.filter(patient_id=self.kwargs['patient_id'])
+        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'], doctor=self.request.user)
+        return Chirurgie.objects.filter(patient=patient)
 
     def perform_create(self, serializer):
-        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'])
+        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'], doctor=self.request.user)
         serializer.save(patient=patient)
 
 
@@ -520,11 +521,12 @@ class HospitalisationListCreateView(generics.ListCreateAPIView):
     POST /api/v1/dossiers/patients/:id/hospitalisations/
     """
     serializer_class = HospitalisationSerializer
-    permission_classes = [IsAuthenticated]
+    permission_classes = [IsDoctor]
 
     def get_queryset(self):
-        return Hospitalisation.objects.filter(patient_id=self.kwargs['patient_id'])
+        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'], doctor=self.request.user)
+        return Hospitalisation.objects.filter(patient=patient)
 
     def perform_create(self, serializer):
-        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'])
+        patient = get_object_or_404(Patient, id=self.kwargs['patient_id'], doctor=self.request.user)
         serializer.save(patient=patient)
