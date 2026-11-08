@@ -26,7 +26,7 @@ class MaternityPatientSerializer(serializers.ModelSerializer):
             'number_of_living_children', 'medical_history', 'obstetric_history',
             'created_at', 'updated_at'
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'patient', 'created_at', 'updated_at']
 
 
 class PregnancySerializer(serializers.ModelSerializer):
