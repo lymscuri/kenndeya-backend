@@ -37,6 +37,7 @@ db.sqlite3-journal
 .env
 .env.local
 .env.production
+.env.bak*
 
 # Fichiers médias et statiques
 /media/
