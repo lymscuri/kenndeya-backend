@@ -43,6 +43,10 @@ SECURE_CONTENT_TYPE_NOSNIFF = True
 SECURE_BROWSER_XSS_FILTER = True
 X_FRAME_OPTIONS = 'DENY'
 
+# PREMIERS SECOURS : en production, aucun protocole non validé ne peut être
+# publié. Valeur forcée EN DUR, volontairement sans lecture de l'environnement.
+FIRSTAID_ALLOW_DRAFTS = False
+
 # CORS (origines strictes en production)
 CORS_ALLOW_ALL_ORIGINS = False
 # CORS_ALLOWED_ORIGINS est déjà défini dans base.py via les variables d'environnement

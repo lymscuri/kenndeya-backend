@@ -58,6 +58,7 @@ INSTALLED_APPS = [
     'apps.reminders',
     'apps.sms',
     'apps.notifications',
+    'apps.firstaid',
     'core',
 ]
 
@@ -262,6 +263,18 @@ SMS_ENABLED = env.bool('SMS_ENABLED', default=False)
 TWILIO_ACCOUNT_SID = env('TWILIO_ACCOUNT_SID', default='')
 TWILIO_AUTH_TOKEN = env('TWILIO_AUTH_TOKEN', default='')
 TWILIO_PHONE_NUMBER = env('TWILIO_PHONE_NUMBER', default='')
+
+# ==============================================================================
+# PREMIERS SECOURS (apps.firstaid)
+# ==============================================================================
+# Numéro d'urgence affiché à l'utilisateur. Vient UNIQUEMENT de l'environnement,
+# jamais d'un fichier de protocole (défaut : 442, Guinée).
+EMERGENCY_NUMBER = env('EMERGENCY_NUMBER', default='442')
+
+# FIRSTAID_ALLOW_DRAFTS : autorise publishable_protocols() à exposer les
+# protocoles non validés par un médecin (développement/recette uniquement).
+# production.py force cette valeur à False en dur, sans lire l'environnement.
+FIRSTAID_ALLOW_DRAFTS = env.bool('FIRSTAID_ALLOW_DRAFTS', default=False)
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {

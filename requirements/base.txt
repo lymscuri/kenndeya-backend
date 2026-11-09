@@ -41,6 +41,9 @@ whitenoise>=6.6.0
 # Monitoring et erreurs (Sentry)
 sentry-sdk>=1.39.0
 
+# Protocoles premiers secours (YAML)
+PyYAML>=6.0
+
 # Utilitaires
 python-dateutil>=2.8.2
 pytz>=2023.3

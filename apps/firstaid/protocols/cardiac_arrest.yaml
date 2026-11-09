@@ -1,0 +1,80 @@
+# =============================================================================
+# PROTOCOLE : arrêt cardiaque — SQUELETTE INCOMPLET
+# -----------------------------------------------------------------------------
+# Ce fichier n'existe que pour que la bascule depuis unconscious_breathing soit
+# valide. Il est marqué `incomplete: true` : il ne peut NI être publié NI être
+# passé à 'validated' tant que ce marqueur est présent.
+#
+# À RÉDIGER (méthode identique à unconscious_breathing) depuis :
+#   - IFRC 2025 EN, chapitre « Unresponsive and abnormal breathing (adolescent
+#     and adult) », à partir de la page 159 ; bébé et enfant à partir de la
+#     page 186.
+#   - IFRC 2020 FR, chapitre « Inconscient qui présente une respiration
+#     anormale (adolescents et adultes) », à partir de la page 143.
+# L'unique étape présente est la phrase de bascule citée dans le chapitre
+# « Unresponsive and breathing normally » (page 154).
+# =============================================================================
+
+id: cardiac_arrest
+title: Personne inconsciente qui ne respire pas normalement
+description: >-
+  La personne ne réagit pas et ne respire pas, ou respire anormalement
+  (halètements, souffle irrégulier). Il faut commencer la réanimation
+  cardio-pulmonaire immédiatement. Protocole à rédiger.
+version: 1
+updated_at: 2026-11-09
+status: draft_unvalidated
+validated_by: []
+incomplete: true
+
+call_emergency_first: true
+
+sources:
+  - key: ifrc_2025_en
+    organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (IFRC)
+    title: International first aid, resuscitation and education guidelines 2025
+    edition: "2025"
+    url: https://www.globalfirstaidcentre.org/
+    licence: >-
+      © IFRC, Genève, 2025. Reproduction de tout ou partie autorisée à des fins
+      non commerciales à condition de mentionner la source (page 2 du document).
+    role: content
+    pages: [154, 159]            # 154 : phrase de bascule ; 159 : début du chapitre à rédiger
+  - key: ifrc_2020_fr
+    organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (FICR)
+    title: Recommandations internationales en matière de premiers secours, de réanimation et de formation 2020
+    edition: "2020 (édition française)"
+    url: https://www.globalfirstaidcentre.org/
+    licence: >-
+      © FICR, Genève, 2020. Copies de tout ou partie autorisées à des fins non
+      commerciales à condition que la source soit mentionnée (page 2 du document).
+    role: terminology
+    pages: [138, 143]            # 138 : « réanimation cardio-pulmonaire » ; 143 : début du chapitre
+
+variants: {}
+
+decision_tree:
+  entry: q_breathing_normal
+  questions:
+    q_breathing_normal:
+      text: La personne respire-t-elle normalement ?
+      answers:
+        "yes":
+          label: Oui
+          switch_to: unconscious_breathing
+        "no":
+          label: Non, elle ne respire pas ou respire anormalement
+          action_block: start_cpr
+
+action_blocks:
+  start_cpr:
+    title: Réanimation cardio-pulmonaire
+    steps:
+      - text: Commencez la réanimation cardio-pulmonaire immédiatement.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 154}
+
+# Vides : autorisés uniquement parce que incomplete: true.
+red_flags: []
+do_not: []
+vision_checkpoints: []

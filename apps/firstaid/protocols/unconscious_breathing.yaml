@@ -1,0 +1,229 @@
+# =============================================================================
+# PROTOCOLE : personne inconsciente qui respire normalement
+# -----------------------------------------------------------------------------
+# Ce fichier est LA source de chaque phrase affichée à l'utilisateur. Aucun
+# modèle de langage n'intervient. Chaque étape cite la page de la source dont
+# elle est tirée (source_page) pour permettre une relecture ligne par ligne.
+#
+# Règles de rédaction : une phrase par étape, impératif, moins de 15 mots,
+# français simple. Le numéro d'urgence n'est JAMAIS écrit ici : il vient de
+# settings.EMERGENCY_NUMBER (placeholder {emergency_number} si besoin).
+#
+# Statut : brouillon NON validé. Ne peut pas être publié tant qu'un médecin
+# n'a pas signé dans validated_by et passé status à 'validated'.
+# =============================================================================
+
+id: unconscious_breathing
+title: Personne inconsciente qui respire
+description: >-
+  La personne ne réagit ni à la voix ni au toucher, mais sa poitrine se soulève
+  et son souffle est régulier. Il faut garder ses voies aériennes ouvertes en
+  la mettant en position latérale de sécurité et appeler les secours.
+version: 1
+updated_at: 2026-11-09
+status: draft_unvalidated
+validated_by: []
+incomplete: false
+
+# Le numéro d'urgence est affiché avant toute consigne (settings.EMERGENCY_NUMBER).
+call_emergency_first: true
+
+sources:
+  - key: ifrc_2025_en
+    organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (IFRC)
+    title: International first aid, resuscitation and education guidelines 2025
+    edition: "2025"
+    url: https://www.globalfirstaidcentre.org/
+    licence: >-
+      © IFRC, Genève, 2025. Reproduction de tout ou partie autorisée à des fins
+      non commerciales à condition de mentionner la source (page 2 du document).
+    role: content
+    pages: [152, 153, 154]       # chapitre « Unresponsive and breathing normally »
+  - key: ifrc_2020_fr
+    organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (FICR)
+    title: Recommandations internationales en matière de premiers secours, de réanimation et de formation 2020
+    edition: "2020 (édition française)"
+    url: https://www.globalfirstaidcentre.org/
+    licence: >-
+      © FICR, Genève, 2020. Copies de tout ou partie autorisées à des fins non
+      commerciales à condition que la source soit mentionnée (page 2 du document).
+    role: terminology            # référence pour les termes français uniquement
+    pages: [136, 137, 138]       # chapitre « Inconscient qui respire normalement »
+
+# Variantes d'âge : les gestes diffèrent pour le nourrisson (tête en position
+# neutre, bébé tenu dans les bras). Adulte et enfant partagent les mêmes gestes.
+variants:
+  adult: Adulte
+  child: Enfant (de 1 an à la puberté)
+  infant: Nourrisson (moins de 1 an)
+
+decision_tree:
+  entry: q_responds
+  questions:
+    q_responds:
+      text: La personne réagit-elle quand vous lui parlez fort et secouez doucement ses épaules ?
+      answers:
+        "yes":
+          label: Oui, elle réagit
+          action_block: person_responds
+        "no":
+          label: Non, aucune réaction
+          action_block: open_airway_check_breathing
+    q_breathing_normal:
+      text: Respire-t-elle normalement, avec un souffle régulier et sans bruit anormal ?
+      answers:
+        "yes":
+          label: Oui, elle respire normalement
+          next_question: q_spine_injury
+        "no":
+          label: Non, elle ne respire pas ou respire anormalement
+          switch_to: cardiac_arrest
+    q_spine_injury:
+      text: Suspectez-vous une blessure à la colonne vertébrale ?
+      answers:
+        "yes":
+          label: Oui, possible blessure du dos ou du cou
+          action_block: spine_suspected
+        "no":
+          label: Non
+          action_block: recovery_position
+
+action_blocks:
+
+  person_responds:
+    title: La personne réagit
+    steps:
+      - text: Elle répond, continuez à évaluer son état et restez avec elle.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 153}
+
+  open_airway_check_breathing:
+    title: Ouvrir les voies aériennes et vérifier la respiration
+    next_question: q_breathing_normal
+    variants:
+      adult:
+        - text: Allongez la personne sur le dos.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Basculez doucement sa tête en arrière et soulevez son menton.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+          visual: ""
+          timer_seconds: 10
+          source_page: {source: ifrc_2025_en, page: 153}
+      child:
+        - text: Allongez l'enfant sur le dos.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Basculez doucement sa tête en arrière et soulevez son menton.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+          visual: ""
+          timer_seconds: 10
+          source_page: {source: ifrc_2025_en, page: 153}
+      infant:
+        - text: Allongez le bébé sur le dos.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Placez sa tête en position neutre et soulevez son menton.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+          visual: ""
+          timer_seconds: 10
+          source_page: {source: ifrc_2025_en, page: 153}
+
+  recovery_position:
+    title: Position latérale de sécurité
+    variants:
+      adult:
+        - text: Tournez la personne sur le côté.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Si elle est enceinte, couchez-la sur le côté gauche.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 152}
+        - text: Basculez sa tête en arrière pour garder les voies aériennes ouvertes.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Si vous ne pouvez pas la tourner, gardez sa tête basculée, menton relevé.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 152}
+        - text: Précisez aux secours qu'elle est inconsciente et respire normalement.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 154}
+        - text: Surveillez tout changement de sa respiration ou de ses réactions.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Si possible, cherchez pourquoi elle est inconsciente.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+      child:
+        - text: Tournez l'enfant sur le côté.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Basculez sa tête en arrière pour garder les voies aériennes ouvertes.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Si vous ne pouvez pas le tourner, gardez sa tête basculée, menton relevé.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 152}
+        - text: Précisez aux secours qu'il est inconscient et respire normalement.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 154}
+        - text: Surveillez tout changement de sa respiration ou de ses réactions.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Si possible, cherchez pourquoi il est inconscient.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+      infant:
+        - text: Tenez le bébé sur le côté dans vos bras.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Gardez sa tête en position neutre, sans la basculer en arrière.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+        - text: Précisez aux secours que le bébé est inconscient et respire normalement.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 154}
+        - text: Surveillez tout changement de sa respiration ou de ses réactions.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 153}
+
+  spine_suspected:
+    title: Blessure de la colonne suspectée
+    steps:
+      - text: Ne déplacez pas la personne.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 152}
+      - text: Gardez ses voies aériennes ouvertes, tête basculée et menton relevé, sans la tourner.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 153}
+      - text: Précisez aux secours qu'elle est inconsciente et respire normalement.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 154}
+      - text: Surveillez tout changement de sa respiration ou de ses réactions.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 153}
+
+# Signes qui interrompent tout : l'application affiche « appelez les secours
+# maintenant » puis bascule vers le scénario indiqué.
+red_flags:
+  - text: Sa respiration s'arrête, devient bruyante ou ressemble à des halètements.
+    source_page: {source: ifrc_2025_en, page: 152}
+    switch_to: cardiac_arrest
+  - text: Elle respire à peine.
+    source_page: {source: ifrc_2025_en, page: 152}
+    switch_to: cardiac_arrest
+
+do_not:
+  - text: Ne déplacez pas une personne dont vous suspectez une blessure de la colonne.
+    source_page: {source: ifrc_2025_en, page: 152}
+  - text: N'utilisez pas la position latérale si vous suspectez une blessure de la colonne.
+    source_page: {source: ifrc_2025_en, page: 153}
+
+# Réservé : points de contrôle caméra que le médecin rédigera. Doit rester vide.
+vision_checkpoints: []
