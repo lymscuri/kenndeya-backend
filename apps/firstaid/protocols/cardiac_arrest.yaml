@@ -1,20 +1,28 @@
 # =============================================================================
-# PROTOCOLE : arrêt cardiaque — SQUELETTE INCOMPLET
+# PROTOCOLE : personne inconsciente qui ne respire pas normalement (arrêt cardiaque)
 # -----------------------------------------------------------------------------
-# Ce fichier n'existe que pour que la bascule depuis unconscious_breathing soit
-# valide. Il est marqué `incomplete: true` : il ne peut NI être publié NI être
-# passé à 'validated' tant que ce marqueur est présent.
+# Ce fichier est LA source de chaque phrase affichée à l'utilisateur. Aucun
+# modèle de langage n'intervient. Chaque étape cite la page de la source dont
+# elle est tirée (source_page) pour permettre une relecture ligne par ligne.
 #
-# BILINGUE : chaque texte affiché porte `fr` ET `en`, obligatoires.
+# BILINGUE : chaque texte affiché porte `fr` ET `en`, obligatoires. Le texte `en`
+# est repris au plus près de l'extrait IFRC 2025 cité par source_page.
 #
-# À RÉDIGER (méthode identique à unconscious_breathing) depuis :
-#   - IFRC 2025 EN, chapitre « Unresponsive and abnormal breathing (adolescent
-#     and adult) », à partir de la page 159 ; bébé et enfant à partir de la
-#     page 186.
-#   - IFRC 2020 FR, chapitre « Inconscient qui présente une respiration
-#     anormale (adolescents et adultes) », à partir de la page 143.
-# L'unique étape présente est la phrase de bascule citée dans le chapitre
-# « Unresponsive and breathing normally » (page 154).
+# Sources : IFRC 2025 EN, chapitres « Unresponsive and abnormal breathing
+# (adolescent and adult) » p.159-163, « (baby and child) » p.186-189 et « when a
+# defibrillator is available » p.196-198. Terminologie : IFRC 2020 FR p.143-146,
+# 157-159, 165-166.
+#
+# DIFFÉRENCE CRITIQUE ENFANT / BÉBÉ : l'IFRC 2025 fait COMMENCER par les
+# insufflations (Key action p.186 ; bonne pratique p.187 « preferred to start
+# with rescue breaths »). L'adulte commence par les compressions (p.159, p.162).
+#
+# Règles de rédaction : une phrase par étape, impératif, moins de 15 mots dans
+# chaque langue. Le numéro d'urgence n'est JAMAIS écrit ici : il vient de
+# settings.EMERGENCY_NUMBER.
+#
+# Statut : brouillon NON validé. Ne peut pas être publié tant qu'un médecin
+# n'a pas signé dans validated_by et passé status à 'validated'.
 # =============================================================================
 
 id: cardiac_arrest
@@ -24,18 +32,21 @@ title:
 description:
   fr: >-
     La personne ne réagit pas et ne respire pas, ou respire anormalement
-    (halètements, souffle irrégulier). Il faut commencer la réanimation
-    cardio-pulmonaire immédiatement. Protocole à rédiger.
+    (halètements, souffle irrégulier ou bruyant). Son cœur ne pompe plus :
+    il faut appeler les secours et commencer immédiatement la réanimation
+    cardio-pulmonaire, avec un défibrillateur dès que possible.
   en: >-
     The person does not respond and is not breathing, or is breathing
-    abnormally (gasping, irregular breaths). Start CPR immediately.
-    Protocol still to be written.
-version: 2
+    abnormally (gasping, irregular or noisy breaths). Their heart has stopped
+    pumping: access emergency services and start CPR immediately, using a
+    defibrillator as soon as one is available.
+version: 3
 updated_at: 2026-11-09
 status: draft_unvalidated
 validated_by: []
-incomplete: true
+incomplete: false
 
+# Le numéro d'urgence est affiché avant toute consigne (settings.EMERGENCY_NUMBER).
 call_emergency_first: true
 
 sources:
@@ -48,7 +59,9 @@ sources:
       © IFRC, Genève, 2025. Reproduction de tout ou partie autorisée à des fins
       non commerciales à condition de mentionner la source (page 2 du document).
     role: content
-    pages: [154, 159]            # 154 : phrase de bascule ; 159 : début du chapitre à rédiger
+    # 154 : phrase de bascule depuis « Unresponsive and breathing normally »
+    # 159-163 : adolescent et adulte · 186-189 : bébé et enfant · 196-198 : défibrillateur
+    pages: [154, 159, 160, 161, 162, 163, 186, 187, 188, 189, 196, 197, 198]
   - key: ifrc_2020_fr
     organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (FICR)
     title: Recommandations internationales en matière de premiers secours, de réanimation et de formation 2020
@@ -57,10 +70,21 @@ sources:
     licence: >-
       © FICR, Genève, 2020. Copies de tout ou partie autorisées à des fins non
       commerciales à condition que la source soit mentionnée (page 2 du document).
-    role: terminology
-    pages: [138, 143]            # 138 : « réanimation cardio-pulmonaire » ; 143 : début du chapitre
+    role: terminology            # référence pour les termes français uniquement
+    pages: [138, 143, 144, 145, 146, 157, 158, 159, 165, 166]
 
-variants: {}
+# Variantes d'âge : les gestes diffèrent (deux mains / une main / deux doigts,
+# profondeur, ordre insufflations-compressions).
+variants:
+  adult:
+    fr: Adulte et adolescent (après la puberté)
+    en: Adult and adolescent (after puberty)
+  child:
+    fr: Enfant (de 1 an à la puberté)
+    en: Child (1 year to puberty)
+  infant:
+    fr: Nourrisson (moins de 1 an)
+    en: Infant (under 1 year)
 
 decision_tree:
   entry: q_breathing_normal
@@ -79,21 +103,567 @@ decision_tree:
           label:
             fr: Non, elle ne respire pas ou respire anormalement
             en: No, not breathing or breathing abnormally
-          action_block: start_cpr
+          next_question: q_rescue_breaths
+    q_rescue_breaths:
+      text:
+        fr: Savez-vous et acceptez-vous de faire des insufflations (bouche-à-bouche) ?
+        en: Are you able and willing to give rescue breaths (mouth-to-mouth)?
+      answers:
+        "yes":
+          label:
+            fr: Oui, avec insufflations
+            en: Yes, with rescue breaths
+          action_block: cpr_with_breaths
+        "no":
+          label:
+            fr: Non, compressions seulement
+            en: No, compressions only
+          action_block: cpr_compressions_only
+    q_aed_available:
+      text:
+        fr: Un défibrillateur (DAE) est-il disponible à proximité ?
+        en: Is a defibrillator (AED) available nearby?
+      answers:
+        "yes":
+          label:
+            fr: Oui
+            en: "Yes"
+          action_block: use_aed
+        "no":
+          label:
+            fr: Non
+            en: "No"
+          action_block: continue_cpr
 
 action_blocks:
-  start_cpr:
+
+  # ---------------------------------------------------------------------------
+  # RCP standard : compressions + insufflations.
+  # Adulte : compressions d'abord. Enfant et bébé : insufflations d'abord.
+  # ---------------------------------------------------------------------------
+  cpr_with_breaths:
     title:
-      fr: Réanimation cardio-pulmonaire
-      en: Cardiopulmonary resuscitation (CPR)
+      fr: Réanimation cardio-pulmonaire avec insufflations
+      en: CPR with rescue breaths
+    next_question: q_aed_available
+    variants:
+      adult:
+        - text:
+            fr: Criez à l'aide et faites appeler les secours par un témoin.
+            en: Shout for help and ask a bystander to access emergency services.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Seul, appelez vous-même les secours, téléphone en haut-parleur.
+            en: If alone, call emergency services yourself using the speaker function.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Dites aux secours que la personne est inconsciente et ne respire pas normalement.
+            en: Tell emergency services the person is unresponsive and not breathing normally.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 163}
+        - text:
+            fr: Allongez la personne sur le dos, sur une surface ferme si possible.
+            en: Lay the person on their back, on a firm surface if possible.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Placez le talon d'une main au centre de la poitrine, l'autre main dessus.
+            en: Place one hand on the centre of the chest, the other hand on top.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Faites 30 compressions à un rythme rapide et régulier, 100 à 120 par minute.
+            en: Give 30 compressions at a fast, regular rate of 100 to 120 per minute.
+          visual: ""
+          timer_seconds: 18
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Enfoncez d'environ 5 cm, sans dépasser 6 cm.
+            en: Press down about 5 cm, no more than 6 cm.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Relâchez complètement la poitrine entre chaque compression, sans vous appuyer dessus.
+            en: Let the chest rise fully between compressions, do not lean on it.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Donnez 2 insufflations bouche-à-bouche d'une seconde chacune, la poitrine doit se soulever.
+            en: Give 2 mouth-to-mouth rescue breaths of one second each, watch the chest rise.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Ne coupez pas les compressions plus de 10 secondes pour les insufflations.
+            en: Do not interrupt compressions for more than 10 seconds to give breaths.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Continuez les cycles de 30 compressions et 2 insufflations sans vous arrêter.
+            en: Continue cycles of 30 compressions and 2 rescue breaths without stopping.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+      child:
+        - text:
+            fr: Criez à l'aide et faites appeler les secours par un témoin.
+            en: Shout for help and ask a bystander to access emergency services.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Seul, appelez vous-même les secours, téléphone en haut-parleur.
+            en: If alone, call emergency services yourself using the speaker function.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Dites aux secours que l'enfant est inconscient et respire anormalement.
+            en: Tell emergency services the child is unresponsive and breathing abnormally.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 189}
+        - text:
+            fr: Allongez l'enfant sur le dos, sur une surface ferme si possible.
+            en: Lay the child on their back, on a firm surface if possible.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Basculez sa tête en arrière et soulevez son menton.
+            en: Tilt their head back and lift their chin.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Donnez d'abord 2 insufflations bouche-à-bouche d'une seconde, la poitrine doit se soulever.
+            en: First give 2 mouth-to-mouth rescue breaths of one second, until the chest rises.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Placez le talon d'une main au centre de la poitrine, deux mains si besoin.
+            en: Put the heel of one hand on the chest centre, two hands if needed.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Faites 30 compressions à un rythme rapide et régulier, 100 à 120 par minute.
+            en: Give 30 compressions at a fast, regular rate of 100 to 120 per minute.
+          visual: ""
+          timer_seconds: 18
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Enfoncez d'environ 5 cm, un tiers de l'épaisseur de la poitrine.
+            en: Press down about 5 cm, one third of the depth of the chest.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Donnez 2 insufflations d'une seconde chacune.
+            en: Give 2 rescue breaths of one second each.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Continuez les cycles de 30 compressions et 2 insufflations sans vous arrêter.
+            en: Continue cycles of 30 compressions and 2 rescue breaths without stopping.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+      infant:
+        - text:
+            fr: Criez à l'aide et faites appeler les secours par un témoin.
+            en: Shout for help and ask a bystander to access emergency services.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Seul, appelez vous-même les secours, téléphone en haut-parleur.
+            en: If alone, call emergency services yourself using the speaker function.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Dites aux secours que le bébé est inconscient et respire anormalement.
+            en: Tell emergency services the baby is unresponsive and breathing abnormally.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 189}
+        - text:
+            fr: Allongez le bébé sur le dos, sur une surface ferme.
+            en: Lay the baby on their back on a firm surface.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Placez sa tête en position neutre et soulevez son menton.
+            en: Tilt their head slightly to a neutral position and lift their chin.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Donnez d'abord 2 insufflations bouche-à-bouche-nez d'une seconde, la poitrine doit se soulever.
+            en: First give 2 mouth-to-mouth-and-nose breaths of one second, until the chest rises.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Placez deux doigts au centre de la poitrine.
+            en: Place two fingers on the centre of the chest.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 186}
+        - text:
+            fr: Faites 30 compressions à un rythme rapide et régulier, 100 à 120 par minute.
+            en: Give 30 compressions at a fast, regular rate of 100 to 120 per minute.
+          visual: ""
+          timer_seconds: 18
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Enfoncez d'environ 4 cm, au moins un tiers de l'épaisseur de la poitrine.
+            en: Press down about 4 cm, at least one third of the chest depth.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Donnez 2 insufflations d'une seconde chacune.
+            en: Give 2 rescue breaths of one second each.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Continuez les cycles de 30 compressions et 2 insufflations sans vous arrêter.
+            en: Continue cycles of 30 compressions and 2 rescue breaths without stopping.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+
+  # ---------------------------------------------------------------------------
+  # RCP « compressions seules » : secouriste non formé, ou qui ne veut pas ou
+  # ne peut pas faire d'insufflations (adulte p.162 ; enfant et bébé p.188).
+  # ---------------------------------------------------------------------------
+  cpr_compressions_only:
+    title:
+      fr: Réanimation par compressions thoraciques seules
+      en: Chest compression-only CPR
+    next_question: q_aed_available
+    variants:
+      adult:
+        - text:
+            fr: Criez à l'aide et faites appeler les secours par un témoin.
+            en: Shout for help and ask a bystander to access emergency services.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Seul, appelez vous-même les secours, téléphone en haut-parleur.
+            en: If alone, call emergency services yourself using the speaker function.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Dites aux secours que la personne est inconsciente et ne respire pas normalement.
+            en: Tell emergency services the person is unresponsive and not breathing normally.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 163}
+        - text:
+            fr: Allongez la personne sur le dos, sur une surface ferme si possible.
+            en: Lay the person on their back, on a firm surface if possible.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Placez le talon d'une main au centre de la poitrine, l'autre main dessus.
+            en: Place one hand on the centre of the chest, the other hand on top.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Enfoncez d'environ 5 cm, sans dépasser 6 cm.
+            en: Press down about 5 cm, no more than 6 cm.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Appuyez sans arrêt à un rythme rapide et régulier, 100 à 120 par minute.
+            en: Push continuously at a fast, regular rate of 100 to 120 per minute.
+          visual: ""
+          timer_seconds: 120
+          source_page: {source: ifrc_2025_en, page: 162}
+        - text:
+            fr: Relâchez complètement la poitrine entre chaque compression, sans vous appuyer dessus.
+            en: Let the chest rise fully between compressions, do not lean on it.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 160}
+        - text:
+            fr: Ne vous arrêtez pas, continuez les compressions sans interruption.
+            en: Do not stop, continue chest compressions without interruption.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 162}
+      child:
+        - text:
+            fr: Criez à l'aide et faites appeler les secours par un témoin.
+            en: Shout for help and ask a bystander to access emergency services.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Seul, appelez vous-même les secours, téléphone en haut-parleur.
+            en: If alone, call emergency services yourself using the speaker function.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Dites aux secours que l'enfant est inconscient et respire anormalement.
+            en: Tell emergency services the child is unresponsive and breathing abnormally.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 189}
+        - text:
+            fr: Allongez l'enfant sur le dos, sur une surface ferme si possible.
+            en: Lay the child on their back, on a firm surface if possible.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Placez le talon d'une main au centre de la poitrine, deux mains si besoin.
+            en: Put the heel of one hand on the chest centre, two hands if needed.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Enfoncez d'environ 5 cm, un tiers de l'épaisseur de la poitrine.
+            en: Press down about 5 cm, one third of the depth of the chest.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Appuyez sans arrêt à un rythme rapide et régulier, 100 à 120 par minute.
+            en: Push continuously at a fast, regular rate of 100 to 120 per minute.
+          visual: ""
+          timer_seconds: 120
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Ne vous arrêtez pas, continuez les compressions sans interruption.
+            en: Do not stop, continue chest compressions without interruption.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+      infant:
+        - text:
+            fr: Criez à l'aide et faites appeler les secours par un témoin.
+            en: Shout for help and ask a bystander to access emergency services.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Seul, appelez vous-même les secours, téléphone en haut-parleur.
+            en: If alone, call emergency services yourself using the speaker function.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Dites aux secours que le bébé est inconscient et respire anormalement.
+            en: Tell emergency services the baby is unresponsive and breathing abnormally.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 189}
+        - text:
+            fr: Allongez le bébé sur le dos, sur une surface ferme.
+            en: Lay the baby on their back on a firm surface.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Placez deux doigts au centre de la poitrine.
+            en: Place two fingers on the centre of the chest.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 186}
+        - text:
+            fr: Enfoncez d'environ 4 cm, au moins un tiers de l'épaisseur de la poitrine.
+            en: Press down about 4 cm, at least one third of the chest depth.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 187}
+        - text:
+            fr: Appuyez sans arrêt à un rythme rapide et régulier, 100 à 120 par minute.
+            en: Push continuously at a fast, regular rate of 100 to 120 per minute.
+          visual: ""
+          timer_seconds: 120
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Ne vous arrêtez pas, continuez les compressions sans interruption.
+            en: Do not stop, continue chest compressions without interruption.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+
+  # ---------------------------------------------------------------------------
+  # Défibrillateur automatisé externe (DAE), tel que décrit par l'IFRC (p.196-198).
+  # À garder ou non selon le contexte : décision du médecin / du DG.
+  # ---------------------------------------------------------------------------
+  use_aed:
+    title:
+      fr: Utiliser le défibrillateur (DAE)
+      en: Use the defibrillator (AED)
+    variants:
+      adult:
+        - text:
+            fr: Faites apporter le défibrillateur par un témoin, continuez la RCP pendant ce temps.
+            en: Ask a bystander to bring the defibrillator, continue CPR in the meantime.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Allumez-le et suivez ses instructions vocales.
+            en: Switch it on and follow the voice prompts.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Collez les électrodes sur la poitrine nue, comme indiqué sur le dessin.
+            en: Apply the pads to the bare chest as shown in the instructions.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Pendant l'analyse, que personne ne touche la personne.
+            en: During the analysis, make sure no one is touching the person.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Si un choc est indiqué, écartez tout le monde et appuyez sur le bouton.
+            en: If a shock is advised, make sure nobody is touching, press the button.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Reprenez immédiatement les compressions après le choc.
+            en: Resume chest compressions immediately after the shock.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 197}
+        - text:
+            fr: Interrompez la RCP le moins possible, seulement quand l'appareil le demande.
+            en: Interrupt CPR as little as possible, only when the device tells you to.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Continuez la RCP jusqu'à l'arrivée des secours ou jusqu'à des signes de vie.
+            en: Continue CPR until emergency help arrives or the person shows signs of life.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+      child:
+        - text:
+            fr: Faites apporter le défibrillateur par un témoin, continuez la RCP pendant ce temps.
+            en: Ask a bystander to bring the defibrillator, continue CPR in the meantime.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Utilisez un défibrillateur ou des électrodes pédiatriques si disponibles, sinon le standard.
+            en: Use a paediatric defibrillator or pads if available, otherwise a standard one.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Allumez-le et suivez ses instructions vocales.
+            en: Switch it on and follow the voice prompts.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Collez les électrodes sur la poitrine nue, comme indiqué sur le dessin.
+            en: Apply the pads to the bare chest as shown in the instructions.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Si les électrodes se touchent, placez-en une devant et une dans le dos.
+            en: If the pads would touch, put one on the front, one on the back.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 196}
+        - text:
+            fr: Pendant l'analyse, que personne ne touche l'enfant.
+            en: During the analysis, make sure no one is touching the child.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Si un choc est indiqué, écartez tout le monde et appuyez sur le bouton.
+            en: If a shock is advised, make sure nobody is touching, press the button.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Reprenez immédiatement les compressions après le choc.
+            en: Resume chest compressions immediately after the shock.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 197}
+        - text:
+            fr: Continuez la RCP jusqu'à l'arrivée des secours ou jusqu'à des signes de vie.
+            en: Continue CPR until emergency help arrives or the child shows signs of life.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+      infant:
+        - text:
+            fr: Faites apporter le défibrillateur par un témoin, continuez la RCP pendant ce temps.
+            en: Ask a bystander to bring the defibrillator, continue CPR in the meantime.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+        - text:
+            fr: Utilisez un défibrillateur ou des électrodes pédiatriques si disponibles, sinon le standard.
+            en: Use a paediatric defibrillator or pads if available, otherwise a standard one.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Allumez-le et suivez ses instructions vocales.
+            en: Switch it on and follow the voice prompts.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Collez une électrode sur la poitrine nue et une dans le dos.
+            en: Apply one pad to the bare chest and one to the back.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 196}
+        - text:
+            fr: Pendant l'analyse, que personne ne touche le bébé.
+            en: During the analysis, make sure no one is touching the baby.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Si un choc est indiqué, écartez tout le monde et appuyez sur le bouton.
+            en: If a shock is advised, make sure nobody is touching, press the button.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 198}
+        - text:
+            fr: Reprenez immédiatement les compressions après le choc.
+            en: Resume chest compressions immediately after the shock.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 197}
+        - text:
+            fr: Continuez la RCP jusqu'à l'arrivée des secours ou jusqu'à des signes de vie.
+            en: Continue CPR until emergency help arrives or the baby shows signs of life.
+          visual: ""
+          source_page: {source: ifrc_2025_en, page: 188}
+
+  # ---------------------------------------------------------------------------
+  # Sans défibrillateur : poursuivre jusqu'aux secours ou aux signes de vie.
+  # ---------------------------------------------------------------------------
+  continue_cpr:
+    title:
+      fr: Poursuivre la réanimation
+      en: Continue CPR
     steps:
       - text:
-          fr: Commencez la réanimation cardio-pulmonaire immédiatement.
-          en: Start CPR immediately.
+          fr: Continuez la RCP jusqu'à l'arrivée des secours ou jusqu'à des signes de vie.
+          en: Continue CPR until emergency help arrives or the person shows signs of life.
         visual: ""
-        source_page: {source: ifrc_2025_en, page: 154}
+        source_page: {source: ifrc_2025_en, page: 188}
+      - text:
+          fr: "Signes de vie : tousser, ouvrir les yeux, parler, bouger volontairement, respirer normalement."
+          en: "Signs of life: coughing, opening the eyes, speaking, moving purposefully, breathing normally."
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 162}
+      - text:
+          fr: À deux secouristes, relayez-vous toutes les deux minutes sans interrompre les compressions.
+          en: With two providers, swap every two minutes without interrupting the compressions.
+        visual: ""
+        timer_seconds: 120
+        source_page: {source: ifrc_2025_en, page: 162}
+      - text:
+          fr: Si elle se remet à respirer normalement, surveillez-la de près jusqu'aux secours.
+          en: If they start breathing normally, keep monitoring closely until emergency services arrive.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 163}
 
-# Vides : autorisés uniquement parce que incomplete: true.
-red_flags: []
-do_not: []
+# Signes qui interrompent tout : l'application affiche « appelez les secours
+# maintenant » puis bascule vers le scénario indiqué.
+red_flags:
+  - text:
+      fr: La personne se remet à respirer normalement ou montre des signes de vie.
+      en: The person starts breathing normally or shows signs of life.
+    source_page: {source: ifrc_2025_en, page: 162}
+    switch_to: unconscious_breathing
+
+# Interdits : uniquement ceux présents dans le texte IFRC.
+do_not:
+  - text:
+      fr: "Ne cherchez pas le pouls, ce n'est pas fiable : commencez la RCP."
+      en: "Do not rely on checking for a pulse, it is unreliable: start CPR."
+    source_page: {source: ifrc_2025_en, page: 159}
+  - text:
+      fr: "N'hésitez pas par peur de nuire : en cas de doute, commencez la RCP."
+      en: "Do not hesitate for fear of causing harm: if in doubt, start CPR."
+    source_page: {source: ifrc_2025_en, page: 159}
+  - text:
+      fr: N'interrompez pas les compressions, sauf si l'appareil ou les secours le demandent.
+      en: Do not interrupt compressions unless the defibrillator or professionals tell you to.
+    source_page: {source: ifrc_2025_en, page: 162}
+  - text:
+      fr: Ne vous appuyez pas sur la poitrine entre deux compressions.
+      en: Do not lean on the chest between compressions.
+    source_page: {source: ifrc_2025_en, page: 160}
+  - text:
+      fr: Ne retardez pas les compressions pour déplacer la personne sur une surface ferme.
+      en: Do not significantly delay starting compressions to move the person.
+    source_page: {source: ifrc_2025_en, page: 160}
+  - text:
+      fr: Ne décollez pas les électrodes une fois posées, même inversées.
+      en: Do not remove the pads once applied, even if they are reversed.
+    source_page: {source: ifrc_2025_en, page: 198}
+
+# Réservé : points de contrôle caméra que le médecin rédigera. Doit rester vide.
 vision_checkpoints: []

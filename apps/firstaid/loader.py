@@ -60,12 +60,13 @@ class _LineLoader(yaml.SafeLoader):
         return mapping
 
 
-def _read_yaml(path: Path) -> tuple[object, list[ProtocolError]]:
+def _read_yaml(path: Path, label: str | None = None) -> tuple[object, list[ProtocolError]]:
     """Lit un fichier ; une erreur de syntaxe est rendue avec sa ligne."""
+    label = label or str(path)
     try:
         text = path.read_text(encoding='utf-8')
     except OSError as exc:
-        return None, [ProtocolError(str(path), None, f'lecture impossible : {exc}')]
+        return None, [ProtocolError(label, None, f'lecture impossible : {exc}')]
     try:
         data = yaml.load(text, Loader=_LineLoader)  # noqa: S506 — SafeLoader dérivé
     except yaml.YAMLError as exc:
@@ -74,9 +75,9 @@ def _read_yaml(path: Path) -> tuple[object, list[ProtocolError]]:
         if mark is not None:
             line = mark.line + 1
         problem = getattr(exc, 'problem', None) or str(exc)
-        return None, [ProtocolError(str(path), line, f'YAML malformé : {problem}')]
+        return None, [ProtocolError(label, line, f'YAML malformé : {problem}')]
     if data is None:
-        return None, [ProtocolError(str(path), 1, 'fichier vide')]
+        return None, [ProtocolError(label, 1, 'fichier vide')]
     return data, []
 
 
@@ -103,7 +104,7 @@ def load_protocols(directory: Path | str | None = None) -> dict[str, Protocol]:
 
     for path in sorted(directory.glob('*.yaml')) + sorted(directory.glob('*.yml')):
         rel = str(path.relative_to(directory.parent)) if directory.parent in path.parents else str(path)
-        data, read_errors = _read_yaml(path)
+        data, read_errors = _read_yaml(path, rel)
         if read_errors:
             errors.extend(read_errors)
             continue

@@ -89,7 +89,33 @@ class LoaderValidTests(SimpleTestCase):
         # la bascule vers cardiac_arrest est résolue
         answer = p.decision_tree.questions['q_breathing_normal'].answers['no']
         self.assertEqual(answer.switch_to, 'cardiac_arrest')
-        self.assertTrue(protocols['cardiac_arrest'].incomplete)
+        self.assertFalse(protocols['cardiac_arrest'].incomplete)
+
+    def test_cardiac_arrest_is_complete_but_not_publishable(self):
+        """cardiac_arrest charge, n'est plus un squelette, reste un brouillon non publiable."""
+        reg = ProtocolRegistry()
+        reg.load(REAL)
+        p = reg.all_protocols()['cardiac_arrest']
+        self.assertFalse(p.incomplete)
+        self.assertEqual(p.version, 3)
+        self.assertEqual(p.status, 'draft_unvalidated')
+        self.assertEqual(p.validated_by, ())
+        self.assertNotIn('cardiac_arrest', reg.publishable_protocols())
+        # les trois variantes existent dans les blocs de RCP
+        for bid in ('cpr_with_breaths', 'cpr_compressions_only', 'use_aed'):
+            self.assertEqual(set(p.action_blocks[bid].variants), {'adult', 'child', 'infant'}, bid)
+        # le red flag « respire à nouveau » bascule vers unconscious_breathing
+        self.assertTrue(any(f.switch_to == 'unconscious_breathing' for f in p.red_flags))
+        # enfant et bébé : les insufflations précèdent les compressions
+        for variant in ('child', 'infant'):
+            texts = [st.text.fr for st in p.action_blocks['cpr_with_breaths'].variants[variant]]
+            first_breath = next(i for i, t in enumerate(texts) if 'insufflations' in t)
+            first_compression = next(i for i, t in enumerate(texts) if '30 compressions' in t)
+            self.assertLess(first_breath, first_compression, variant)
+        # adulte : les compressions précèdent les insufflations
+        texts = [st.text.fr for st in p.action_blocks['cpr_with_breaths'].variants['adult']]
+        self.assertLess(next(i for i, t in enumerate(texts) if '30 compressions' in t),
+                        next(i for i, t in enumerate(texts) if 'insufflations' in t))
 
     def test_every_text_has_both_languages(self):
         """Aucun texte affichable ne manque d'une langue, et aucune n'est vide."""
@@ -313,9 +339,13 @@ class PublishableTests(SimpleTestCase):
         """Hors production, ALLOW_DRAFTS laisse passer les brouillons complets, jamais les squelettes."""
         reg = ProtocolRegistry()
         reg.load(REAL)
-        pub = reg.publishable_protocols()
-        self.assertIn('unconscious_breathing', pub)
-        self.assertNotIn('cardiac_arrest', pub)
+        self.assertEqual(set(reg.publishable_protocols()), {'unconscious_breathing', 'cardiac_arrest'})
+        # un squelette (incomplete: true) reste exclu même avec ALLOW_DRAFTS
+        with _TmpProtocols() as d:
+            _replace_once(d / 'cardiac_arrest.yaml', 'incomplete: false', 'incomplete: true')
+            reg2 = ProtocolRegistry()
+            reg2.load(d)
+            self.assertEqual(set(reg2.publishable_protocols()), {'unconscious_breathing'})
 
 
 class ProductionSettingsTests(SimpleTestCase):
