@@ -5,6 +5,8 @@
 # valide. Il est marqué `incomplete: true` : il ne peut NI être publié NI être
 # passé à 'validated' tant que ce marqueur est présent.
 #
+# BILINGUE : chaque texte affiché porte `fr` ET `en`, obligatoires.
+#
 # À RÉDIGER (méthode identique à unconscious_breathing) depuis :
 #   - IFRC 2025 EN, chapitre « Unresponsive and abnormal breathing (adolescent
 #     and adult) », à partir de la page 159 ; bébé et enfant à partir de la
@@ -16,12 +18,19 @@
 # =============================================================================
 
 id: cardiac_arrest
-title: Personne inconsciente qui ne respire pas normalement
-description: >-
-  La personne ne réagit pas et ne respire pas, ou respire anormalement
-  (halètements, souffle irrégulier). Il faut commencer la réanimation
-  cardio-pulmonaire immédiatement. Protocole à rédiger.
-version: 1
+title:
+  fr: Personne inconsciente qui ne respire pas normalement
+  en: Unresponsive person who is not breathing normally
+description:
+  fr: >-
+    La personne ne réagit pas et ne respire pas, ou respire anormalement
+    (halètements, souffle irrégulier). Il faut commencer la réanimation
+    cardio-pulmonaire immédiatement. Protocole à rédiger.
+  en: >-
+    The person does not respond and is not breathing, or is breathing
+    abnormally (gasping, irregular breaths). Start CPR immediately.
+    Protocol still to be written.
+version: 2
 updated_at: 2026-11-09
 status: draft_unvalidated
 validated_by: []
@@ -34,7 +43,7 @@ sources:
     organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (IFRC)
     title: International first aid, resuscitation and education guidelines 2025
     edition: "2025"
-    url: https://www.globalfirstaidcentre.org/
+    url: https://www.globalfirstaidcentre.org/wp-content/uploads/2026/03/Guidelines-2025_compressed.pdf
     licence: >-
       © IFRC, Genève, 2025. Reproduction de tout ou partie autorisée à des fins
       non commerciales à condition de mentionner la source (page 2 du document).
@@ -44,7 +53,7 @@ sources:
     organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (FICR)
     title: Recommandations internationales en matière de premiers secours, de réanimation et de formation 2020
     edition: "2020 (édition française)"
-    url: https://www.globalfirstaidcentre.org/
+    url: https://www.globalfirstaidcentre.org/wp-content/uploads/2021/02/FR_GFARC-GUIDELINES.pdf
     licence: >-
       © FICR, Genève, 2020. Copies de tout ou partie autorisées à des fins non
       commerciales à condition que la source soit mentionnée (page 2 du document).
@@ -57,20 +66,30 @@ decision_tree:
   entry: q_breathing_normal
   questions:
     q_breathing_normal:
-      text: La personne respire-t-elle normalement ?
+      text:
+        fr: La personne respire-t-elle normalement ?
+        en: Is the person breathing normally?
       answers:
         "yes":
-          label: Oui
+          label:
+            fr: Oui
+            en: "Yes"
           switch_to: unconscious_breathing
         "no":
-          label: Non, elle ne respire pas ou respire anormalement
+          label:
+            fr: Non, elle ne respire pas ou respire anormalement
+            en: No, not breathing or breathing abnormally
           action_block: start_cpr
 
 action_blocks:
   start_cpr:
-    title: Réanimation cardio-pulmonaire
+    title:
+      fr: Réanimation cardio-pulmonaire
+      en: Cardiopulmonary resuscitation (CPR)
     steps:
-      - text: Commencez la réanimation cardio-pulmonaire immédiatement.
+      - text:
+          fr: Commencez la réanimation cardio-pulmonaire immédiatement.
+          en: Start CPR immediately.
         visual: ""
         source_page: {source: ifrc_2025_en, page: 154}
 

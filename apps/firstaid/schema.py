@@ -8,9 +8,15 @@ Ce module ne lit aucun fichier : il reçoit des dictionnaires déjà chargés
 Toutes les règles « bloquantes » du cahier des charges vivent ici :
 - 'validated' sans signataire → refusé
 - source ou source_page manquante → refusé
-- étape de 15 mots ou plus → refusée
+- étape de 15 mots ou plus (dans l'une OU l'autre langue) → refusée
 - réponse vers une question inexistante → refusée
-- numéro d'urgence écrit en dur → refusé (il vient de settings.EMERGENCY_NUMBER)
+- numéro d'urgence écrit en dur (dans l'une OU l'autre langue) → refusé
+- texte affiché sans ses DEUX langues fr et en → refusé, aucun repli
+
+Bilinguisme : tout texte destiné à l'utilisateur est un dictionnaire
+{fr: ..., en: ...}. Les deux clés sont obligatoires et non vides, toute autre
+clé est refusée. Un endpoint n'obtient du texte que par Protocol.localized(lang),
+qui sert une seule langue, sans valeur par défaut et sans repli.
 """
 
 from __future__ import annotations
@@ -31,6 +37,9 @@ class LineInfo(int):
     """Ligne d'un bloc YAML ; `.keys` donne la ligne de chacune de ses clés."""
     keys: dict[str, int] = {}
 
+
+LANGS = ('fr', 'en')                       # les deux langues servies, rien d'autre
+
 STATUS_DRAFT = 'draft_unvalidated'
 STATUS_REVIEW = 'under_review'
 STATUS_VALIDATED = 'validated'
@@ -38,7 +47,7 @@ STATUSES = (STATUS_DRAFT, STATUS_REVIEW, STATUS_VALIDATED)
 
 VARIANTS = ('adult', 'child', 'infant')    # adulte / enfant / nourrisson
 
-MAX_STEP_WORDS = 14                        # « moins de 15 mots »
+MAX_STEP_WORDS = 14                        # « moins de 15 mots », par langue
 
 ID_RE = re.compile(r'^[a-z][a-z0-9_]{2,63}$')
 PAGE_PLACEHOLDER_NUMBER = '{emergency_number}'   # seul moyen d'afficher le numéro
@@ -83,6 +92,24 @@ class ProtocolValidationError(Exception):
 # ------------------------------------------------------------------------------
 
 @dataclass(frozen=True)
+class LocalizedText:
+    """
+    Un texte affiché, dans ses deux langues. Les deux sont toujours présentes :
+    la validation l'impose, il n'existe donc aucun repli d'une langue sur l'autre.
+    """
+    fr: str
+    en: str
+
+    def get(self, lang: str) -> str:
+        if lang not in LANGS:
+            raise ValueError(f"langue non supportée : {lang!r} (attendu 'fr' ou 'en')")
+        return getattr(self, lang)
+
+    def values(self) -> tuple[str, str]:
+        return (self.fr, self.en)
+
+
+@dataclass(frozen=True)
 class Validator:
     name: str
     qualification: str
@@ -111,7 +138,7 @@ class SourcePage:
 @dataclass(frozen=True)
 class Step:
     number: int
-    text: str
+    text: LocalizedText
     source_page: SourcePage
     visual: str = ''          # réservé : identifiant d'illustration, vide pour l'instant
     timer_seconds: int | None = None
@@ -120,7 +147,7 @@ class Step:
 @dataclass(frozen=True)
 class ActionBlock:
     id: str
-    title: str
+    title: LocalizedText
     # soit des étapes communes, soit des étapes par variante (adult/child/infant)
     steps: tuple[Step, ...] = ()
     variants: dict[str, tuple[Step, ...]] = field(default_factory=dict)
@@ -131,10 +158,15 @@ class ActionBlock:
             return self.variants.get(variant) or self.variants.get('adult') or ()
         return self.steps
 
+    def all_steps(self) -> tuple[Step, ...]:
+        if self.variants:
+            return tuple(s for steps in self.variants.values() for s in steps)
+        return self.steps
+
 
 @dataclass(frozen=True)
 class Answer:
-    label: str
+    label: LocalizedText
     next_question: str | None = None
     action_block: str | None = None
     switch_to: str | None = None
@@ -143,7 +175,7 @@ class Answer:
 @dataclass(frozen=True)
 class Question:
     id: str
-    text: str
+    text: LocalizedText
     answers: dict[str, Answer]      # clé = valeur de réponse ('yes', 'no', ...)
 
 
@@ -156,7 +188,7 @@ class DecisionTree:
 @dataclass(frozen=True)
 class Flag:
     """Red flag ou interdit : une phrase et sa page source."""
-    text: str
+    text: LocalizedText
     source_page: SourcePage
     switch_to: str | None = None       # red flag : scénario vers lequel basculer
 
@@ -164,8 +196,8 @@ class Flag:
 @dataclass(frozen=True)
 class Protocol:
     id: str
-    title: str
-    description: str
+    title: LocalizedText
+    description: LocalizedText
     version: int
     updated_at: _dt.date
     status: str
@@ -176,7 +208,7 @@ class Protocol:
     action_blocks: dict[str, ActionBlock]
     red_flags: tuple[Flag, ...]
     do_not: tuple[Flag, ...]
-    variants: dict[str, str]              # variante → libellé français
+    variants: dict[str, LocalizedText]    # variante → libellé
     vision_checkpoints: tuple[Any, ...]   # réservé, vide pour l'instant
     incomplete: bool                      # squelette non rédigé, jamais publiable
     file: str
@@ -184,6 +216,103 @@ class Protocol:
     @property
     def is_validated(self) -> bool:
         return self.status == STATUS_VALIDATED and bool(self.validated_by)
+
+    # --- textes -------------------------------------------------------------
+
+    def all_texts(self) -> tuple[LocalizedText, ...]:
+        """Tous les textes affichables du protocole (pour audits et tests)."""
+        out: list[LocalizedText] = [self.title, self.description, *self.variants.values()]
+        for q in self.decision_tree.questions.values():
+            out.append(q.text)
+            out.extend(a.label for a in q.answers.values())
+        for b in self.action_blocks.values():
+            out.append(b.title)
+            out.extend(s.text for s in b.all_steps())
+        out.extend(f.text for f in self.red_flags)
+        out.extend(f.text for f in self.do_not)
+        return tuple(out)
+
+    def localized(self, lang: str) -> dict[str, Any]:
+        """
+        Vue plate du protocole dans UNE seule langue.
+
+        C'est la seule voie par laquelle un endpoint obtient du texte. `lang`
+        n'a pas de valeur par défaut ; toute valeur autre que 'fr' ou 'en'
+        lève ValueError. Aucun texte d'une autre langue ne peut apparaître :
+        chaque LocalizedText porte obligatoirement les deux langues.
+        """
+        if lang not in LANGS:
+            raise ValueError(f"langue non supportée : {lang!r} (attendu 'fr' ou 'en')")
+
+        def t(text: LocalizedText) -> str:
+            return text.get(lang)
+
+        def step(s: Step) -> dict[str, Any]:
+            return {
+                'number': s.number,
+                'text': t(s.text),
+                'visual': s.visual,
+                'timer_seconds': s.timer_seconds,
+                'source': {'key': s.source_page.source, 'page': s.source_page.page},
+            }
+
+        def block(b: ActionBlock) -> dict[str, Any]:
+            out: dict[str, Any] = {'id': b.id, 'title': t(b.title), 'next_question': b.next_question}
+            if b.variants:
+                out['variants'] = {v: [step(s) for s in steps] for v, steps in b.variants.items()}
+            else:
+                out['steps'] = [step(s) for s in b.steps]
+            return out
+
+        def flag(f: Flag) -> dict[str, Any]:
+            out: dict[str, Any] = {
+                'text': t(f.text),
+                'source': {'key': f.source_page.source, 'page': f.source_page.page},
+            }
+            if f.switch_to:
+                out['switch_to'] = f.switch_to
+            return out
+
+        return {
+            'id': self.id,
+            'lang': lang,
+            'title': t(self.title),
+            'description': t(self.description),
+            'version': self.version,
+            'updated_at': self.updated_at.isoformat(),
+            'status': self.status,
+            'call_emergency_first': self.call_emergency_first,
+            'variants': {k: t(v) for k, v in self.variants.items()},
+            'decision_tree': {
+                'entry': self.decision_tree.entry,
+                'questions': {
+                    qid: {
+                        'text': t(q.text),
+                        'answers': {
+                            akey: {
+                                'label': t(a.label),
+                                'next_question': a.next_question,
+                                'action_block': a.action_block,
+                                'switch_to': a.switch_to,
+                            }
+                            for akey, a in q.answers.items()
+                        },
+                    }
+                    for qid, q in self.decision_tree.questions.items()
+                },
+            },
+            'action_blocks': {bid: block(b) for bid, b in self.action_blocks.items()},
+            'red_flags': [flag(f) for f in self.red_flags],
+            'do_not': [flag(f) for f in self.do_not],
+            'sources': [
+                {
+                    'key': s.key, 'organisation': s.organisation, 'title': s.title,
+                    'edition': s.edition, 'url': s.url, 'licence': s.licence,
+                    'role': s.role, 'pages': list(s.pages),
+                }
+                for s in self.sources.values()
+            ],
+        }
 
 
 # ------------------------------------------------------------------------------
@@ -257,11 +386,56 @@ class _Ctx:
         self.err(node, f"'{key}' doit être une date ISO (AAAA-MM-JJ)")
         return None
 
+    # --- textes bilingues ---------------------------------------------------
 
-def _check_text(ctx: _Ctx, node: dict, text: str, label: str) -> None:
-    """Règles communes à toute phrase affichée : pas de numéro en dur."""
-    if FORBIDDEN_NUMBERS_RE.search(text.replace(PAGE_PLACEHOLDER_NUMBER, '')):
-        ctx.err(node, f"{label} : numéro d'urgence écrit en dur — utiliser settings.EMERGENCY_NUMBER", 'text')
+    def ltext(self, node: dict, key: str, label: str, *,
+              max_words: int | None = None, question: bool = False) -> LocalizedText | None:
+        """
+        Lit un texte affiché {fr, en}. Chaque règle (présence, non-vide, clé
+        inconnue, longueur, « ? », numéro en dur) est vérifiée pour CHAQUE
+        langue séparément et rapportée à la ligne de la langue concernée.
+        """
+        if key not in node:
+            self.err(node, f"champ obligatoire manquant : '{label}'")
+            return None
+        raw = node[key]
+        if not isinstance(raw, dict):
+            self.err(node, f"'{label}' doit être un dictionnaire {{fr: ..., en: ...}} (texte bilingue)", key)
+            return None
+        ok = True
+        for k in raw:
+            if k != LINE_KEY and k not in LANGS:
+                self.err(raw, f"'{label}' : clé de langue inconnue '{k}' (seules 'fr' et 'en' sont admises)", k)
+                ok = False
+        values: dict[str, str] = {}
+        for lang in LANGS:
+            if lang not in raw:
+                self.err(raw, f"'{label}' : langue '{lang}' manquante (aucun repli d'une langue sur l'autre)")
+                ok = False
+                continue
+            val = raw[lang]
+            if not isinstance(val, str) or not val.strip():
+                hint = ''
+                if isinstance(val, bool):
+                    hint = " (yes/no/true/false sans guillemets sont lus comme des booléens : écrire \"Yes\")"
+                self.err(raw, f"'{label}.{lang}' doit être une chaîne non vide{hint}", lang)
+                ok = False
+                continue
+            if max_words is not None:
+                n = word_count(val)
+                if n > max_words:
+                    self.err(raw, f"'{label}.{lang}' : {n} mots, maximum {max_words} (« {val} »)", lang)
+                    ok = False
+            if question and not val.strip().endswith('?'):
+                self.err(raw, f"'{label}.{lang}' : une question fermée se termine par « ? »", lang)
+                ok = False
+            if FORBIDDEN_NUMBERS_RE.search(val.replace(PAGE_PLACEHOLDER_NUMBER, '')):
+                self.err(raw, f"'{label}.{lang}' : numéro d'urgence écrit en dur — utiliser settings.EMERGENCY_NUMBER", lang)
+                ok = False
+            values[lang] = val
+        if not ok:
+            return None
+        return LocalizedText(fr=values['fr'], en=values['en'])
 
 
 def _parse_source_page(ctx: _Ctx, node: dict, sources: dict[str, Source], label: str) -> SourcePage | None:
@@ -335,12 +509,7 @@ def _parse_steps(ctx: _Ctx, raw: Any, sources: dict[str, Source], label: str) ->
             ctx.err({}, f"{label}[{i}] doit être un dictionnaire")
             continue
         lab = f'{label} étape {i}'
-        text = ctx.req(st, 'text', str, f'{lab}.text')
-        if text is not None:
-            n = word_count(text)
-            if n > MAX_STEP_WORDS:
-                ctx.err(st, f"{lab} : {n} mots, maximum {MAX_STEP_WORDS} (« {text} »)", 'text')
-            _check_text(ctx, st, text, lab)
+        text = ctx.ltext(st, 'text', f'{lab}.text', max_words=MAX_STEP_WORDS)
         visual = ctx.opt(st, 'visual', str, '') if st.get('visual') else ''
         timer = st.get('timer_seconds')
         if timer is not None and (isinstance(timer, bool) or not isinstance(timer, int) or timer <= 0):
@@ -354,7 +523,7 @@ def _parse_steps(ctx: _Ctx, raw: Any, sources: dict[str, Source], label: str) ->
 
 
 def _parse_action_blocks(ctx: _Ctx, root: dict, sources: dict[str, Source],
-                         variants: dict[str, str]) -> dict[str, ActionBlock]:
+                         variants: dict[str, LocalizedText]) -> dict[str, ActionBlock]:
     out: dict[str, ActionBlock] = {}
     raw = ctx.req(root, 'action_blocks', dict)
     if raw is None:
@@ -367,7 +536,7 @@ def _parse_action_blocks(ctx: _Ctx, root: dict, sources: dict[str, Source],
             continue
         if ID_RE.match(str(bid)) is None:
             ctx.err(b, f"action_blocks : identifiant '{bid}' invalide (snake_case attendu)")
-        title = ctx.req(b, 'title', str, f'action_blocks.{bid}.title') or ''
+        title = ctx.ltext(b, 'title', f'action_blocks.{bid}.title')
         nq = b.get('next_question')
         if nq is not None and (not isinstance(nq, str) or not nq.strip()):
             ctx.err(b, f"action_blocks.{bid}.next_question doit être un identifiant de question")
@@ -377,6 +546,8 @@ def _parse_action_blocks(ctx: _Ctx, root: dict, sources: dict[str, Source],
         if has_steps == has_variants:
             ctx.err(b, f"action_blocks.{bid} : exactement un de 'steps' (commun) ou 'variants' (par âge)")
             continue
+        if title is None:
+            title = LocalizedText(fr='', en='')      # erreur déjà rapportée ; le protocole sera rejeté
         if has_steps:
             steps = _parse_steps(ctx, b['steps'], sources, f'action_blocks.{bid}.steps')
             out[bid] = ActionBlock(id=bid, title=title, steps=steps, next_question=nq)
@@ -419,11 +590,7 @@ def _parse_decision_tree(ctx: _Ctx, root: dict, blocks: dict[str, ActionBlock]) 
             continue
         if ID_RE.match(str(qid)) is None:
             ctx.err(q, f"decision_tree : identifiant de question '{qid}' invalide")
-        text = ctx.req(q, 'text', str, f'questions.{qid}.text')
-        if text is not None:
-            _check_text(ctx, q, text, f'questions.{qid}.text')
-            if not text.strip().endswith('?'):
-                ctx.err(q, f"questions.{qid}.text : une question fermée se termine par « ? »")
+        text = ctx.ltext(q, 'text', f'questions.{qid}.text', question=True)
         araw = ctx.req(q, 'answers', dict, f'questions.{qid}.answers')
         if araw is None:
             continue
@@ -435,14 +602,14 @@ def _parse_decision_tree(ctx: _Ctx, root: dict, blocks: dict[str, ActionBlock]) 
             if not isinstance(a, dict):
                 ctx.err(araw, f"{lab} doit être un dictionnaire")
                 continue
-            label = ctx.req(a, 'label', str, f'{lab}.label') or ''
+            label = ctx.ltext(a, 'label', f'{lab}.label')
             targets = [k for k in ANSWER_TARGET_KEYS if k in a]
             if len(targets) != 1:
                 ctx.err(a, f"{lab} : exactement une cible parmi {list(ANSWER_TARGET_KEYS)}")
                 continue
             tkey = targets[0]
             tval = ctx.req(a, tkey, str, f'{lab}.{tkey}')
-            if tval is None:
+            if tval is None or label is None:
                 continue
             if tkey == 'next_question' and tval not in qids:
                 ctx.err(a, f"{lab} : réponse vers la question inexistante '{tval}'", tkey)
@@ -455,7 +622,9 @@ def _parse_decision_tree(ctx: _Ctx, root: dict, blocks: dict[str, ActionBlock]) 
             answers[str(akey)] = Answer(label=label, **{tkey: tval})
         if len(answers) < 2:
             ctx.err(q, f"questions.{qid} : une question fermée a au moins deux réponses")
-        questions[qid] = Question(id=qid, text=text or '', answers=answers)
+        if text is None:
+            continue
+        questions[qid] = Question(id=qid, text=text, answers=answers)
     for bid, blk in blocks.items():
         if blk.next_question is not None and blk.next_question not in qids:
             ctx.err(root['action_blocks'][bid], f"action_blocks.{bid}.next_question : question inexistante '{blk.next_question}'", 'next_question')
@@ -477,9 +646,7 @@ def _parse_flags(ctx: _Ctx, root: dict, key: str, sources: dict[str, Source],
         if not isinstance(f, dict):
             ctx.err(root, f"{key}[{i}] doit être un dictionnaire")
             continue
-        text = ctx.req(f, 'text', str, f'{key}[{i}].text')
-        if text is not None:
-            _check_text(ctx, f, text, f'{key}[{i}].text')
+        text = ctx.ltext(f, 'text', f'{key}[{i}].text')
         sp = _parse_source_page(ctx, f, sources, f'{key}[{i}]')
         sw = f.get('switch_to')
         if sw is not None:
@@ -536,8 +703,8 @@ def parse_protocol(data: Any, file: str, expected_id: str | None = None) -> tupl
         if expected_id is not None and pid != expected_id:
             ctx.err(data, f"'id' ({pid}) doit être égal au nom du fichier ({expected_id})")
 
-    title = ctx.req(data, 'title', str)
-    description = ctx.req(data, 'description', str)
+    title = ctx.ltext(data, 'title', 'title')
+    description = ctx.ltext(data, 'description', 'description')
     version = ctx.req(data, 'version', int)
     if version is not None and version < 1:
         ctx.err(data, "'version' commence à 1")
@@ -558,18 +725,17 @@ def parse_protocol(data: Any, file: str, expected_id: str | None = None) -> tupl
     sources = _parse_sources(ctx, data)
 
     variants_raw = ctx.opt(data, 'variants', dict, {})
-    variants: dict[str, str] = {}
+    variants: dict[str, LocalizedText] = {}
     if isinstance(variants_raw, dict):
-        for k, v in variants_raw.items():
+        for k in variants_raw:
             if k == LINE_KEY:
                 continue
             if k not in VARIANTS:
-                ctx.err(variants_raw, f"variants : '{k}' inconnue (attendu parmi {list(VARIANTS)})")
+                ctx.err(variants_raw, f"variants : '{k}' inconnue (attendu parmi {list(VARIANTS)})", k)
                 continue
-            if not isinstance(v, str) or not v.strip():
-                ctx.err(variants_raw, f"variants.{k} : libellé français attendu")
-                continue
-            variants[k] = v
+            label = ctx.ltext(variants_raw, k, f'variants.{k}')
+            if label is not None:
+                variants[k] = label
 
     blocks = _parse_action_blocks(ctx, data, sources, variants)
     tree, switches = _parse_decision_tree(ctx, data, blocks)

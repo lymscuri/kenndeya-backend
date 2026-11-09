@@ -5,21 +5,32 @@
 # modèle de langage n'intervient. Chaque étape cite la page de la source dont
 # elle est tirée (source_page) pour permettre une relecture ligne par ligne.
 #
-# Règles de rédaction : une phrase par étape, impératif, moins de 15 mots,
-# français simple. Le numéro d'urgence n'est JAMAIS écrit ici : il vient de
-# settings.EMERGENCY_NUMBER (placeholder {emergency_number} si besoin).
+# BILINGUE : chaque texte affiché porte `fr` ET `en`, obligatoires. L'app sert
+# une consigne entièrement dans une langue, jamais mélangée. Le texte `en` est
+# repris au plus près de l'extrait IFRC 2025 cité par source_page.
+#
+# Règles de rédaction : une phrase par étape, impératif, moins de 15 mots dans
+# chaque langue, français simple. Le numéro d'urgence n'est JAMAIS écrit ici :
+# il vient de settings.EMERGENCY_NUMBER (placeholder {emergency_number} si besoin).
 #
 # Statut : brouillon NON validé. Ne peut pas être publié tant qu'un médecin
 # n'a pas signé dans validated_by et passé status à 'validated'.
 # =============================================================================
 
 id: unconscious_breathing
-title: Personne inconsciente qui respire
-description: >-
-  La personne ne réagit ni à la voix ni au toucher, mais sa poitrine se soulève
-  et son souffle est régulier. Il faut garder ses voies aériennes ouvertes en
-  la mettant en position latérale de sécurité et appeler les secours.
-version: 1
+title:
+  fr: Personne inconsciente qui respire
+  en: Unresponsive person who is breathing
+description:
+  fr: >-
+    La personne ne réagit ni à la voix ni au toucher, mais sa poitrine se soulève
+    et son souffle est régulier. Il faut garder ses voies aériennes ouvertes en
+    la mettant en position latérale de sécurité et appeler les secours.
+  en: >-
+    The person does not respond to sound or touch, but their chest rises and
+    their breathing is regular. Keep their airway open by placing them in the
+    recovery position and call emergency services.
+version: 2
 updated_at: 2026-11-09
 status: draft_unvalidated
 validated_by: []
@@ -33,7 +44,7 @@ sources:
     organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (IFRC)
     title: International first aid, resuscitation and education guidelines 2025
     edition: "2025"
-    url: https://www.globalfirstaidcentre.org/
+    url: https://www.globalfirstaidcentre.org/wp-content/uploads/2026/03/Guidelines-2025_compressed.pdf
     licence: >-
       © IFRC, Genève, 2025. Reproduction de tout ou partie autorisée à des fins
       non commerciales à condition de mentionner la source (page 2 du document).
@@ -43,7 +54,7 @@ sources:
     organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (FICR)
     title: Recommandations internationales en matière de premiers secours, de réanimation et de formation 2020
     edition: "2020 (édition française)"
-    url: https://www.globalfirstaidcentre.org/
+    url: https://www.globalfirstaidcentre.org/wp-content/uploads/2021/02/FR_GFARC-GUIDELINES.pdf
     licence: >-
       © FICR, Genève, 2020. Copies de tout ou partie autorisées à des fins non
       commerciales à condition que la source soit mentionnée (page 2 du document).
@@ -53,176 +64,278 @@ sources:
 # Variantes d'âge : les gestes diffèrent pour le nourrisson (tête en position
 # neutre, bébé tenu dans les bras). Adulte et enfant partagent les mêmes gestes.
 variants:
-  adult: Adulte
-  child: Enfant (de 1 an à la puberté)
-  infant: Nourrisson (moins de 1 an)
+  adult:
+    fr: Adulte
+    en: Adult
+  child:
+    fr: Enfant (de 1 an à la puberté)
+    en: Child (1 year to puberty)
+  infant:
+    fr: Nourrisson (moins de 1 an)
+    en: Infant (under 1 year)
 
 decision_tree:
   entry: q_responds
   questions:
     q_responds:
-      text: La personne réagit-elle quand vous lui parlez fort et secouez doucement ses épaules ?
+      text:
+        fr: La personne réagit-elle quand vous lui parlez fort et secouez doucement ses épaules ?
+        en: Does the person respond when you speak loudly and gently shake their shoulders?
       answers:
         "yes":
-          label: Oui, elle réagit
+          label:
+            fr: Oui, elle réagit
+            en: Yes, they respond
           action_block: person_responds
         "no":
-          label: Non, aucune réaction
+          label:
+            fr: Non, aucune réaction
+            en: No, no response
           action_block: open_airway_check_breathing
     q_breathing_normal:
-      text: Respire-t-elle normalement, avec un souffle régulier et sans bruit anormal ?
+      text:
+        fr: Respire-t-elle normalement, avec un souffle régulier et sans bruit anormal ?
+        en: Are they breathing normally, with regular breaths and no unusual sounds?
       answers:
         "yes":
-          label: Oui, elle respire normalement
+          label:
+            fr: Oui, elle respire normalement
+            en: Yes, breathing normally
           next_question: q_spine_injury
         "no":
-          label: Non, elle ne respire pas ou respire anormalement
+          label:
+            fr: Non, elle ne respire pas ou respire anormalement
+            en: No, not breathing or breathing abnormally
           switch_to: cardiac_arrest
     q_spine_injury:
-      text: Suspectez-vous une blessure à la colonne vertébrale ?
+      text:
+        fr: Suspectez-vous une blessure à la colonne vertébrale ?
+        en: Do you suspect a spine injury?
       answers:
         "yes":
-          label: Oui, possible blessure du dos ou du cou
+          label:
+            fr: Oui, possible blessure du dos ou du cou
+            en: Yes, possible back or neck injury
           action_block: spine_suspected
         "no":
-          label: Non
+          label:
+            fr: Non
+            en: "No"
           action_block: recovery_position
 
 action_blocks:
 
   person_responds:
-    title: La personne réagit
+    title:
+      fr: La personne réagit
+      en: The person responds
     steps:
-      - text: Elle répond, continuez à évaluer son état et restez avec elle.
+      - text:
+          fr: Elle répond, continuez à évaluer son état et restez avec elle.
+          en: They respond, continue with your assessment and stay with them.
         visual: ""
         source_page: {source: ifrc_2025_en, page: 153}
 
   open_airway_check_breathing:
-    title: Ouvrir les voies aériennes et vérifier la respiration
+    title:
+      fr: Ouvrir les voies aériennes et vérifier la respiration
+      en: Open the airway and check breathing
     next_question: q_breathing_normal
     variants:
       adult:
-        - text: Allongez la personne sur le dos.
+        - text:
+            fr: Allongez la personne sur le dos.
+            en: Lay the person on their back.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Basculez doucement sa tête en arrière et soulevez son menton.
+        - text:
+            fr: Basculez doucement sa tête en arrière et soulevez son menton.
+            en: Gently tilt their head back and lift the chin.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+        - text:
+            fr: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+            en: Look, listen and feel for normal breathing for up to ten seconds.
           visual: ""
           timer_seconds: 10
           source_page: {source: ifrc_2025_en, page: 153}
       child:
-        - text: Allongez l'enfant sur le dos.
+        - text:
+            fr: Allongez l'enfant sur le dos.
+            en: Lay the child on their back.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Basculez doucement sa tête en arrière et soulevez son menton.
+        - text:
+            fr: Basculez doucement sa tête en arrière et soulevez son menton.
+            en: Gently tilt their head back and lift the chin.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+        - text:
+            fr: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+            en: Look, listen and feel for normal breathing for up to ten seconds.
           visual: ""
           timer_seconds: 10
           source_page: {source: ifrc_2025_en, page: 153}
       infant:
-        - text: Allongez le bébé sur le dos.
+        - text:
+            fr: Allongez le bébé sur le dos.
+            en: Lay the baby on their back.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Placez sa tête en position neutre et soulevez son menton.
+        - text:
+            fr: Placez sa tête en position neutre et soulevez son menton.
+            en: Place their head in a neutral position and lift the chin.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+        - text:
+            fr: Regardez, écoutez et sentez une respiration normale pendant dix secondes maximum.
+            en: Look, listen and feel for normal breathing for up to ten seconds.
           visual: ""
           timer_seconds: 10
           source_page: {source: ifrc_2025_en, page: 153}
 
   recovery_position:
-    title: Position latérale de sécurité
+    title:
+      fr: Position latérale de sécurité
+      en: Recovery position
     variants:
       adult:
-        - text: Tournez la personne sur le côté.
+        - text:
+            fr: Tournez la personne sur le côté.
+            en: Move the person onto their side.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Si elle est enceinte, couchez-la sur le côté gauche.
+        - text:
+            fr: Si elle est enceinte, couchez-la sur le côté gauche.
+            en: If they are pregnant, place them on their left side.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 152}
-        - text: Basculez sa tête en arrière pour garder les voies aériennes ouvertes.
+        - text:
+            fr: Basculez sa tête en arrière pour garder les voies aériennes ouvertes.
+            en: Tilt their head back to maintain an open airway.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Si vous ne pouvez pas la tourner, gardez sa tête basculée, menton relevé.
+        - text:
+            fr: Si vous ne pouvez pas la tourner, gardez sa tête basculée, menton relevé.
+            en: If you cannot turn them, keep their head tilted and chin lifted.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 152}
-        - text: Précisez aux secours qu'elle est inconsciente et respire normalement.
+        - text:
+            fr: Précisez aux secours qu'elle est inconsciente et respire normalement.
+            en: Tell emergency services the person is unresponsive and breathing normally.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 154}
-        - text: Surveillez tout changement de sa respiration ou de ses réactions.
+        - text:
+            fr: Surveillez tout changement de sa respiration ou de ses réactions.
+            en: Monitor any change in their breathing or level of response.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Si possible, cherchez pourquoi elle est inconsciente.
+        - text:
+            fr: Si possible, cherchez pourquoi elle est inconsciente.
+            en: If possible, try to establish why the person is unresponsive.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
       child:
-        - text: Tournez l'enfant sur le côté.
+        - text:
+            fr: Tournez l'enfant sur le côté.
+            en: Move the child onto their side.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Basculez sa tête en arrière pour garder les voies aériennes ouvertes.
+        - text:
+            fr: Basculez sa tête en arrière pour garder les voies aériennes ouvertes.
+            en: Tilt their head back to maintain an open airway.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Si vous ne pouvez pas le tourner, gardez sa tête basculée, menton relevé.
+        - text:
+            fr: Si vous ne pouvez pas le tourner, gardez sa tête basculée, menton relevé.
+            en: If you cannot turn them, keep their head tilted and chin lifted.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 152}
-        - text: Précisez aux secours qu'il est inconscient et respire normalement.
+        - text:
+            fr: Précisez aux secours qu'il est inconscient et respire normalement.
+            en: Tell emergency services the child is unresponsive and breathing normally.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 154}
-        - text: Surveillez tout changement de sa respiration ou de ses réactions.
+        - text:
+            fr: Surveillez tout changement de sa respiration ou de ses réactions.
+            en: Monitor any change in their breathing or level of response.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Si possible, cherchez pourquoi il est inconscient.
+        - text:
+            fr: Si possible, cherchez pourquoi il est inconscient.
+            en: If possible, try to establish why the child is unresponsive.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
       infant:
-        - text: Tenez le bébé sur le côté dans vos bras.
+        - text:
+            fr: Tenez le bébé sur le côté dans vos bras.
+            en: Hold the baby on their side in your arms.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Gardez sa tête en position neutre, sans la basculer en arrière.
+        - text:
+            fr: Gardez sa tête en position neutre, sans la basculer en arrière.
+            en: Keep their head in a neutral position, do not tilt it back.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
-        - text: Précisez aux secours que le bébé est inconscient et respire normalement.
+        - text:
+            fr: Précisez aux secours que le bébé est inconscient et respire normalement.
+            en: Tell emergency services the baby is unresponsive and breathing normally.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 154}
-        - text: Surveillez tout changement de sa respiration ou de ses réactions.
+        - text:
+            fr: Surveillez tout changement de sa respiration ou de ses réactions.
+            en: Monitor any change in their breathing or level of response.
           visual: ""
           source_page: {source: ifrc_2025_en, page: 153}
 
   spine_suspected:
-    title: Blessure de la colonne suspectée
+    title:
+      fr: Blessure de la colonne suspectée
+      en: Suspected spine injury
     steps:
-      - text: Ne déplacez pas la personne.
+      - text:
+          fr: Ne déplacez pas la personne.
+          en: Do not move the person.
         visual: ""
         source_page: {source: ifrc_2025_en, page: 152}
-      - text: Gardez ses voies aériennes ouvertes, tête basculée et menton relevé, sans la tourner.
+      - text:
+          fr: Gardez ses voies aériennes ouvertes, tête basculée et menton relevé, sans la tourner.
+          en: Keep the airway open with head tilted and chin lifted, without turning them.
         visual: ""
         source_page: {source: ifrc_2025_en, page: 153}
-      - text: Précisez aux secours qu'elle est inconsciente et respire normalement.
+      - text:
+          fr: Précisez aux secours qu'elle est inconsciente et respire normalement.
+          en: Tell emergency services the person is unresponsive and breathing normally.
         visual: ""
         source_page: {source: ifrc_2025_en, page: 154}
-      - text: Surveillez tout changement de sa respiration ou de ses réactions.
+      - text:
+          fr: Surveillez tout changement de sa respiration ou de ses réactions.
+          en: Monitor any change in their breathing or level of response.
         visual: ""
         source_page: {source: ifrc_2025_en, page: 153}
 
 # Signes qui interrompent tout : l'application affiche « appelez les secours
 # maintenant » puis bascule vers le scénario indiqué.
 red_flags:
-  - text: Sa respiration s'arrête, devient bruyante ou ressemble à des halètements.
+  - text:
+      fr: Sa respiration s'arrête, devient bruyante ou ressemble à des halètements.
+      en: Their breathing stops, becomes noisy or sounds like gasping for air.
     source_page: {source: ifrc_2025_en, page: 152}
     switch_to: cardiac_arrest
-  - text: Elle respire à peine.
+  - text:
+      fr: Elle respire à peine.
+      en: They are hardly breathing.
     source_page: {source: ifrc_2025_en, page: 152}
     switch_to: cardiac_arrest
 
 do_not:
-  - text: Ne déplacez pas une personne dont vous suspectez une blessure de la colonne.
+  - text:
+      fr: Ne déplacez pas une personne dont vous suspectez une blessure de la colonne.
+      en: Do not move a person with a suspected spine injury.
     source_page: {source: ifrc_2025_en, page: 152}
-  - text: N'utilisez pas la position latérale si vous suspectez une blessure de la colonne.
+  - text:
+      fr: N'utilisez pas la position latérale si vous suspectez une blessure de la colonne.
+      en: Do not use the recovery position if you suspect a spine injury.
     source_page: {source: ifrc_2025_en, page: 153}
 
 # Réservé : points de contrôle caméra que le médecin rédigera. Doit rester vide.
