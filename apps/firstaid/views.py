@@ -100,9 +100,10 @@ def protocol_list(request):
             'description': p.description.get(lang),
             'version': p.version,
             'updated_at': p.updated_at.isoformat(),
+            'status': p.status,          # même chaîne que dans le détail (bandeau « données de test »)
             'variants': {k: v.get(lang) for k, v in p.variants.items()},
         })
-    etag = _etag('list', lang, *(f'{p.id}:{p.version}' for p in (protocols[k] for k in sorted(protocols))))
+    etag = _etag('list', lang, *(f'{p.id}:{p.version}:{p.status}' for p in (protocols[k] for k in sorted(protocols))))
     return _cached(Response({'success': True, 'count': len(results), 'results': results}), etag, request)
 
 

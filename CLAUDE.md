@@ -331,7 +331,7 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 
 **Endpoints firstaid :**
 ```
-GET /api/v1/firstaid/protocols/?lang=fr|en        liste des protocoles publiables (résumé)
+GET /api/v1/firstaid/protocols/?lang=fr|en        liste des protocoles publiables (id, title, description, version, updated_at, status, variants)
 GET /api/v1/firstaid/protocols/:id/?lang=fr|en    protocole complet dans une langue + emergency_number
 GET /api/v1/firstaid/meta/?lang=fr|en             emergency_number, languages, protocol_count
 ```

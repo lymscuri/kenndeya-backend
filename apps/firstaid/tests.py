@@ -602,10 +602,13 @@ class PublicApiTests(SimpleTestCase):
         self.assertEqual(body['count'], 2)
         self.assertEqual([x['id'] for x in body['results']], ['cardiac_arrest', 'unconscious_breathing'])
         for item in body['results']:
-            self.assertEqual(set(item), {'id', 'title', 'description', 'version', 'updated_at', 'variants'})
+            self.assertEqual(set(item), {'id', 'title', 'description', 'version', 'updated_at', 'status', 'variants'})
             p = protocols[item['id']]
             self.assertEqual(item['title'], p.title.fr)
             self.assertEqual(item['version'], p.version)
+            self.assertEqual(item['status'], 'draft_unvalidated')
+            detail = self.client.get(f"{self.LIST}{item['id']}/", {'lang': 'fr'}).json()['data']
+            self.assertEqual(item['status'], detail['status'])
         self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).json()['data']['protocol_count'], 2)
 
         for pid, p in protocols.items():
@@ -662,6 +665,15 @@ class PublicApiTests(SimpleTestCase):
             r = self.client.get(url, {'lang': 'fr'})
             self.assertEqual(r['Cache-Control'], 'public, max-age=3600')
             self.assertIn('ETag', r)
+        # l'ETag de la liste change si un status change (même ids, mêmes versions)
+        from .loader import registry
+        registry.load(REAL)
+        before = self.client.get(self.LIST, {'lang': 'fr'})['ETag']
+        with _TmpProtocols() as d:
+            _replace_once(d / MAIN, 'status: draft_unvalidated', 'status: under_review')
+            registry.load(d)
+            after = self.client.get(self.LIST, {'lang': 'fr'})['ETag']
+        self.assertNotEqual(before, after)
 
     # --- un protocole validé et signé sort sans ALLOW_DRAFTS -----------------------------
 
@@ -675,6 +687,7 @@ class PublicApiTests(SimpleTestCase):
             registry.load(d)
             lst = self.client.get(self.LIST, {'lang': 'fr'}).json()
             self.assertEqual([x['id'] for x in lst['results']], ['unconscious_breathing'])
+            self.assertEqual(lst['results'][0]['status'], 'validated')
             self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).json()['data']['protocol_count'], 1)
             r = self.client.get(f'{self.LIST}unconscious_breathing/', {'lang': 'fr'})
             self.assertEqual(r.status_code, 200)
