@@ -82,6 +82,7 @@ urlpatterns = [
     path('api/v1/reminders/', include('apps.reminders.urls')),
     path('api/v1/sms/', include('apps.sms.urls')),
     path('api/v1/notifications/', include('apps.notifications.urls')),
+    path('api/v1/firstaid/', include('apps.firstaid.urls')),
 ]
 
 # Servir les fichiers médias en développement

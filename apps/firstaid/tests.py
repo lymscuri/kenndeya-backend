@@ -491,3 +491,161 @@ class ReviewCommandTests(SimpleTestCase):
                              ['cardiac_arrest_fr_v4.pdf', 'unconscious_breathing_fr_v3.pdf'])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
+
+
+class PublicApiTests(SimpleTestCase):
+    """Endpoints publics : lecture seule, langue stricte, brouillons invisibles."""
+
+    LIST = '/api/v1/firstaid/protocols/'
+    META = '/api/v1/firstaid/meta/'
+
+    def setUp(self):
+        from django.core.cache import cache
+        from rest_framework.test import APIClient
+        cache.clear()                      # compteurs de throttle
+        self.client = APIClient()
+        from .loader import registry
+        registry.load(REAL)
+
+    def tearDown(self):
+        from .loader import registry
+        registry.load(REAL)
+
+    # --- sans ALLOW_DRAFTS : rien n'est servi ------------------------------------
+
+    def test_drafts_are_invisible_by_default(self):
+        r = self.client.get(self.LIST, {'lang': 'fr'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json(), {'success': True, 'count': 0, 'results': []})
+        for pid in ('unconscious_breathing', 'cardiac_arrest', 'does_not_exist'):
+            r = self.client.get(f'{self.LIST}{pid}/', {'lang': 'fr'})
+            self.assertEqual(r.status_code, 404, pid)
+            self.assertFalse(r.json()['success'])
+            self.assertEqual(r.json()['error']['code'], 'not_found')
+        # un brouillon et un id inexistant produisent exactement la même réponse
+        draft = self.client.get(f'{self.LIST}cardiac_arrest/', {'lang': 'en'}).json()
+        unknown = self.client.get(f'{self.LIST}zzz_unknown/', {'lang': 'en'}).json()
+        self.assertEqual(draft, unknown)
+        r = self.client.get(self.META, {'lang': 'en'})
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()['data']['protocol_count'], 0)
+        self.assertEqual(r.json()['data']['emergency_number'], str(settings.EMERGENCY_NUMBER))
+        self.assertEqual(r.json()['data']['languages'], ['fr', 'en'])
+
+    # --- lang strict -------------------------------------------------------------------
+
+    def test_lang_is_mandatory_and_strict(self):
+        for params in ({}, {'lang': 'de'}, {'lang': 'FR'}, {'lang': ''}, {'lang': 'fr,en'}):
+            for url in (self.LIST, f'{self.LIST}unconscious_breathing/', self.META):
+                r = self.client.get(url, params)
+                self.assertEqual(r.status_code, 400, (url, params))
+                body = r.json()
+                self.assertFalse(body['success'])
+                self.assertEqual(body['error']['code'], 'lang_required')
+                self.assertIn('obligatoire', body['error']['message'])   # français
+                self.assertIn('required', body['error']['message'])      # anglais
+        # Accept-Language est ignoré
+        r = self.client.get(self.LIST, HTTP_ACCEPT_LANGUAGE='fr')
+        self.assertEqual(r.status_code, 400)
+
+    # --- avec ALLOW_DRAFTS : contenu complet, une seule langue, champs expurgés ---------
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_list_and_detail_with_drafts_allowed(self):
+        protocols = load_protocols(REAL)
+        r = self.client.get(self.LIST, {'lang': 'fr'})
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertEqual(body['count'], 2)
+        self.assertEqual([x['id'] for x in body['results']], ['cardiac_arrest', 'unconscious_breathing'])
+        for item in body['results']:
+            self.assertEqual(set(item), {'id', 'title', 'description', 'version', 'updated_at', 'variants'})
+            p = protocols[item['id']]
+            self.assertEqual(item['title'], p.title.fr)
+            self.assertEqual(item['version'], p.version)
+        self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).json()['data']['protocol_count'], 2)
+
+        for pid, p in protocols.items():
+            for lang, other in (('fr', 'en'), ('en', 'fr')):
+                r = self.client.get(f'{self.LIST}{pid}/', {'lang': lang})
+                self.assertEqual(r.status_code, 200, pid)
+                body = r.json()
+                self.assertTrue(body['success'])
+                data = body['data']
+                self.assertEqual(data['id'], pid)
+                self.assertEqual(data['lang'], lang)
+                self.assertEqual(data['emergency_number'], str(settings.EMERGENCY_NUMBER))
+                self.assertNotIn('review_notes', data)
+                self.assertEqual(data['validated_by'], [])      # brouillon : liste vide, mais clé présente
+                raw = json.dumps(body, ensure_ascii=False)
+                for t in p.all_texts():
+                    if t in p.review_notes:
+                        self.assertNotIn(json.dumps(t.get(lang), ensure_ascii=False), raw, 'review_notes a fui')
+                        continue
+                    self.assertNotIn(json.dumps(t.get(other), ensure_ascii=False), raw,
+                                     f'{pid}/{lang} contient « {t.get(other)} »')
+                    self.assertIn(json.dumps(t.get(lang), ensure_ascii=False), raw)
+                # structure attendue par l'app mobile
+                for key in ('title', 'description', 'version', 'status', 'call_emergency_first', 'variants',
+                            'decision_tree', 'action_blocks', 'red_flags', 'do_not', 'sources'):
+                    self.assertIn(key, data, key)
+
+    # --- cache : ETag et Cache-Control ----------------------------------------------------
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_etag_and_cache_headers(self):
+        fr = self.client.get(f'{self.LIST}unconscious_breathing/', {'lang': 'fr'})
+        en = self.client.get(f'{self.LIST}unconscious_breathing/', {'lang': 'en'})
+        other = self.client.get(f'{self.LIST}cardiac_arrest/', {'lang': 'fr'})
+        for r in (fr, en, other):
+            self.assertEqual(r['Cache-Control'], 'public, max-age=3600')
+            self.assertTrue(r['ETag'].startswith('"') and r['ETag'].endswith('"'))
+        self.assertNotEqual(fr['ETag'], en['ETag'])
+        self.assertNotEqual(fr['ETag'], other['ETag'])
+        # If-None-Match → 304 sans corps
+        again = self.client.get(f'{self.LIST}unconscious_breathing/', {'lang': 'fr'}, HTTP_IF_NONE_MATCH=fr['ETag'])
+        self.assertEqual(again.status_code, 304)
+        self.assertEqual(again['ETag'], fr['ETag'])
+        # une autre version produit un autre ETag
+        with _TmpProtocols() as d:
+            _replace_once(d / MAIN, 'version: 3\n', 'version: 99\n')
+            from .loader import registry
+            registry.load(d)
+            bumped = self.client.get(f'{self.LIST}unconscious_breathing/', {'lang': 'fr'})
+            self.assertEqual(bumped.status_code, 200)
+            self.assertNotEqual(bumped['ETag'], fr['ETag'])
+        # la liste et meta sont aussi mis en cache
+        for url in (self.LIST, self.META):
+            r = self.client.get(url, {'lang': 'fr'})
+            self.assertEqual(r['Cache-Control'], 'public, max-age=3600')
+            self.assertIn('ETag', r)
+
+    # --- un protocole validé et signé sort sans ALLOW_DRAFTS -----------------------------
+
+    def test_validated_protocol_is_served_without_allow_drafts(self):
+        self.assertFalse(settings.FIRSTAID_ALLOW_DRAFTS)
+        with _TmpProtocols() as d:
+            path = d / MAIN
+            _replace_once(path, 'status: draft_unvalidated', 'status: validated')
+            _replace_once(path, 'validated_by: []\n', SIGNATURE)
+            from .loader import registry
+            registry.load(d)
+            lst = self.client.get(self.LIST, {'lang': 'fr'}).json()
+            self.assertEqual([x['id'] for x in lst['results']], ['unconscious_breathing'])
+            self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).json()['data']['protocol_count'], 1)
+            r = self.client.get(f'{self.LIST}unconscious_breathing/', {'lang': 'fr'})
+            self.assertEqual(r.status_code, 200)
+            data = r.json()['data']
+            self.assertEqual(data['status'], 'validated')
+            # validated_by réduit : name, qualification, date — ni organisation ni autre champ
+            self.assertEqual(data['validated_by'], [
+                {'name': 'Dr Test Médecin', 'qualification': 'Médecin urgentiste', 'date': '2026-11-09'},
+            ])
+            self.assertNotIn('review_notes', data)
+            # le brouillon voisin reste invisible
+            self.assertEqual(self.client.get(f'{self.LIST}cardiac_arrest/', {'lang': 'fr'}).status_code, 404)
+
+    def test_only_get_is_allowed(self):
+        for method in ('post', 'put', 'patch', 'delete'):
+            r = getattr(self.client, method)(f'{self.LIST}?lang=fr', {}, format='json')
+            self.assertEqual(r.status_code, 405, method)

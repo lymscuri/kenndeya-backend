@@ -168,6 +168,11 @@ REST_FRAMEWORK = {
     'NON_FIELD_ERRORS_KEY': 'error',
     'DATETIME_FORMAT': '%Y-%m-%d %H:%M:%S',
     'DATE_FORMAT': '%Y-%m-%d',
+    # Limitation de débit par portée (ScopedRateThrottle). 'firstaid' : endpoints
+    # publics de premiers secours, anonymes, lecture seule, mis en cache 1 h côté client.
+    'DEFAULT_THROTTLE_RATES': {
+        'firstaid': '120/hour',
+    },
 }
 
 # CONFIGURATION DRF-SPECTACULAR (Documentation API)

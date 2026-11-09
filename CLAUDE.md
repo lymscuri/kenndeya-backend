@@ -315,12 +315,21 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 - [x] `apps/firstaid/apps.py` → refus de démarrer si un protocole est invalide
 - [x] `apps/firstaid/protocols/unconscious_breathing.yaml` → brouillon non validé, bilingue, 33 étapes sourcées
 - [x] `apps/firstaid/protocols/cardiac_arrest.yaml` → brouillon non validé, bilingue, 3 variantes, RCP avec/sans insufflations, DAE
-- [x] `apps/firstaid/tests.py` → 38 tests (`manage.py test apps.firstaid`)
+- [x] `apps/firstaid/tests.py` → 44 tests (`manage.py test apps.firstaid`)
 - [x] `apps/firstaid/review.py` + `management/commands/firstaid_review.py` → dossier de relecture PDF
       (`python manage.py firstaid_review --out <dossier> [--lang fr|en|both]`, un PDF par protocole et par langue)
 - [x] champ YAML optionnel `review_notes: [{fr, en}]` → points à trancher par le médecin, rendus en fin de PDF
 - [ ] Validation médicale (`validated_by` + `status: validated`) avant tout endpoint public
-- [ ] Endpoints publics (n'appellent QUE `publishable_protocols()`)
+- [x] `apps/firstaid/views.py` + `urls.py` → endpoints publics lecture seule sous `/api/v1/firstaid/`,
+      n'appellent QUE `publishable_protocols()`, `lang=fr|en` obligatoire, AllowAny, throttle `firstaid`,
+      Cache-Control 1 h + ETag, `review_notes` jamais servi, `validated_by` réduit
+
+**Endpoints firstaid :**
+```
+GET /api/v1/firstaid/protocols/?lang=fr|en        liste des protocoles publiables (résumé)
+GET /api/v1/firstaid/protocols/:id/?lang=fr|en    protocole complet dans une langue + emergency_number
+GET /api/v1/firstaid/meta/?lang=fr|en             emergency_number, languages, protocol_count
+```
 
 ---
 
