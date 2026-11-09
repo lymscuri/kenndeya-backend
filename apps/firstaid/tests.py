@@ -350,6 +350,49 @@ class PublishableTests(SimpleTestCase):
 
 class ProductionSettingsTests(SimpleTestCase):
 
+    @staticmethod
+    def _import_settings(module: str, env_value: str | None):
+        """Importe un module de settings à neuf, avec FIRSTAID_ALLOW_DRAFTS posé (ou retiré) dans l'env."""
+        saved_env = os.environ.get('FIRSTAID_ALLOW_DRAFTS')
+        saved_modules = {k: sys.modules.pop(k) for k in list(sys.modules) if k.startswith('config.settings')}
+        try:
+            if env_value is None:
+                os.environ.pop('FIRSTAID_ALLOW_DRAFTS', None)
+            else:
+                os.environ['FIRSTAID_ALLOW_DRAFTS'] = env_value
+            return importlib.import_module(module).FIRSTAID_ALLOW_DRAFTS
+        finally:
+            if saved_env is None:
+                os.environ.pop('FIRSTAID_ALLOW_DRAFTS', None)
+            else:
+                os.environ['FIRSTAID_ALLOW_DRAFTS'] = saved_env
+            for k in list(sys.modules):
+                if k.startswith('config.settings'):
+                    sys.modules.pop(k)
+            sys.modules.update(saved_modules)
+
+    def test_staging_reads_allow_drafts_from_environment(self):
+        """staging.py : True si l'env dit True, False sans variable ; production reste False dans les deux cas."""
+        self.assertIs(self._import_settings('config.settings.staging', 'True'), True)
+        self.assertIs(self._import_settings('config.settings.staging', None), False)
+        self.assertIs(self._import_settings('config.settings.staging', 'False'), False)
+        self.assertIs(self._import_settings('config.settings.production', 'True'), False)
+        self.assertIs(self._import_settings('config.settings.production', None), False)
+
+    def test_staging_is_production_plus_one_setting(self):
+        """staging.py = import étoile de production + la seule ligne FIRSTAID_ALLOW_DRAFTS (analyse ast)."""
+        import ast
+        source = (Path(settings.BASE_DIR) / 'config' / 'settings' / 'staging.py').read_text(encoding='utf-8')
+        body = [n for n in ast.parse(source).body
+                if not (isinstance(n, ast.Expr) and isinstance(getattr(n, 'value', None), ast.Constant))]
+        self.assertEqual(len(body), 2, [type(n).__name__ for n in body])
+        imp, assign = body
+        self.assertIsInstance(imp, ast.ImportFrom)
+        self.assertEqual((imp.module, imp.names[0].name), ('production', '*'))
+        self.assertIsInstance(assign, ast.Assign)
+        self.assertEqual(assign.targets[0].id, 'FIRSTAID_ALLOW_DRAFTS')
+        self.assertIn("env.bool('FIRSTAID_ALLOW_DRAFTS', default=False)", ast.get_source_segment(source, assign.value))
+
     def test_allow_drafts_cannot_be_enabled_in_production(self):
         """production.py force FIRSTAID_ALLOW_DRAFTS=False même si l'environnement dit True."""
         source = (Path(settings.BASE_DIR) / 'config' / 'settings' / 'production.py').read_text(encoding='utf-8')

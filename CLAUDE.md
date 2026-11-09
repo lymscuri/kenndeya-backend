@@ -309,13 +309,18 @@ protocole YAML sous `apps/firstaid/protocols/`, cité page par page (IFRC 2025 E
 IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 
 - [x] `config/settings/base.py` → `EMERGENCY_NUMBER` (défaut 442), `FIRSTAID_ALLOW_DRAFTS` (défaut False)
-- [x] `config/settings/production.py` → `FIRSTAID_ALLOW_DRAFTS = False` forcé en dur
+- [x] `config/settings/production.py` → `FIRSTAID_ALLOW_DRAFTS = False` forcé en dur (verrou intact)
+- [x] `config/settings/staging.py` → `from .production import *` + `FIRSTAID_ALLOW_DRAFTS` lu depuis l'env.
+      **Railway = environnement de TEST (staging)**, app installée uniquement sur le téléphone du DG :
+      `DJANGO_SETTINGS_MODULE=config.settings.staging`, `FIRSTAID_ALLOW_DRAFTS=True` → brouillons servis.
+      **Au lancement public : repasser `DJANGO_SETTINGS_MODULE=config.settings.production`** (verrou en dur,
+      la variable FIRSTAID_ALLOW_DRAFTS est alors ignorée).
 - [x] `apps/firstaid/schema.py` → structures + règles de validation (15 mots, source_page, signataires…)
 - [x] `apps/firstaid/loader.py` → YAML avec lignes, registre, `all_protocols()` / `publishable_protocols()`
 - [x] `apps/firstaid/apps.py` → refus de démarrer si un protocole est invalide
 - [x] `apps/firstaid/protocols/unconscious_breathing.yaml` → brouillon non validé, bilingue, 33 étapes sourcées
 - [x] `apps/firstaid/protocols/cardiac_arrest.yaml` → brouillon non validé, bilingue, 3 variantes, RCP avec/sans insufflations, DAE
-- [x] `apps/firstaid/tests.py` → 44 tests (`manage.py test apps.firstaid`)
+- [x] `apps/firstaid/tests.py` → 46 tests (`manage.py test apps.firstaid`)
 - [x] `apps/firstaid/review.py` + `management/commands/firstaid_review.py` → dossier de relecture PDF
       (`python manage.py firstaid_review --out <dossier> [--lang fr|en|both]`, un PDF par protocole et par langue)
 - [x] champ YAML optionnel `review_notes: [{fr, en}]` → points à trancher par le médecin, rendus en fin de PDF
@@ -438,6 +443,10 @@ celery -A config beat --loglevel=info
 | `TWILIO_AUTH_TOKEN` | ⚠️ prod | SMS Twilio |
 | `TWILIO_PHONE_NUMBER` | ⚠️ prod | Numéro Twilio |
 | `SENTRY_DSN` | ⚠️ prod | Monitoring erreurs |
+| `DJANGO_SETTINGS_MODULE` | ✅ | `config.settings.staging` sur Railway (test) ; `config.settings.production` au lancement public |
+| `FIRSTAID_ALLOW_DRAFTS` | staging | `True` sur Railway (test) pour servir les protocoles brouillons ; ignorée en production |
+| `EMERGENCY_NUMBER` | optionnel | Numéro d'urgence affiché par firstaid (défaut 442) |
+| `SMS_ENABLED` | ✅ | `False` tant que l'envoi réel de SMS n'est pas voulu |
 
 ---
 
