@@ -212,6 +212,9 @@ class Protocol:
     vision_checkpoints: tuple[Any, ...]   # réservé, vide pour l'instant
     incomplete: bool                      # squelette non rédigé, jamais publiable
     file: str
+    # Points à trancher par le médecin relecteur : textes bilingues libres
+    # (sans limite de mots), rendus dans le dossier de relecture. Peut être vide.
+    review_notes: tuple[LocalizedText, ...] = ()
 
     @property
     def is_validated(self) -> bool:
@@ -230,6 +233,7 @@ class Protocol:
             out.extend(s.text for s in b.all_steps())
         out.extend(f.text for f in self.red_flags)
         out.extend(f.text for f in self.do_not)
+        out.extend(self.review_notes)
         return tuple(out)
 
     def localized(self, lang: str) -> dict[str, Any]:
@@ -304,6 +308,7 @@ class Protocol:
             'action_blocks': {bid: block(b) for bid, b in self.action_blocks.items()},
             'red_flags': [flag(f) for f in self.red_flags],
             'do_not': [flag(f) for f in self.do_not],
+            'review_notes': [t(n) for n in self.review_notes],
             'sources': [
                 {
                     'key': s.key, 'organisation': s.organisation, 'title': s.title,
@@ -581,7 +586,7 @@ def _parse_decision_tree(ctx: _Ctx, root: dict, blocks: dict[str, ActionBlock]) 
     qraw = ctx.req(raw, 'questions', dict, 'decision_tree.questions')
     if qraw is None:
         return None, switches
-    qids = {k for k in qraw if k != LINE_KEY}
+    qids = [k for k in qraw if k != LINE_KEY]          # ordre du fichier conservé
     questions: dict[str, Question] = {}
     for qid in qids:
         q = qraw[qid]
@@ -662,6 +667,26 @@ def _parse_flags(ctx: _Ctx, root: dict, key: str, sources: dict[str, Source],
             continue
         flags.append(Flag(text=text, source_page=sp, switch_to=sw))
     return tuple(flags)
+
+
+def _parse_review_notes(ctx: _Ctx, root: dict) -> tuple[LocalizedText, ...]:
+    """review_notes : liste optionnelle de textes bilingues libres (vide admise)."""
+    if 'review_notes' not in root or root['review_notes'] is None:
+        return ()
+    raw = root['review_notes']
+    if not isinstance(raw, list):
+        ctx.err(root, "'review_notes' doit être une liste de textes {fr: ..., en: ...}", 'review_notes')
+        return ()
+    notes: list[LocalizedText] = []
+    for i, n in enumerate(raw, start=1):
+        if not isinstance(n, dict):
+            ctx.err(root, f"review_notes[{i}] doit être un dictionnaire {{fr: ..., en: ...}}", 'review_notes')
+            continue
+        # on réutilise ltext sur un conteneur minimal pour garder les lignes exactes
+        text = ctx.ltext({'note': n, LINE_KEY: n.get(LINE_KEY)}, 'note', f'review_notes[{i}]')
+        if text is not None:
+            notes.append(text)
+    return tuple(notes)
 
 
 def _parse_validators(ctx: _Ctx, root: dict) -> tuple[Validator, ...]:
@@ -748,6 +773,8 @@ def parse_protocol(data: Any, file: str, expected_id: str | None = None) -> tupl
     if vision:
         ctx.err(data, "'vision_checkpoints' doit rester vide pour l'instant (réservé au médecin)")
 
+    review_notes = _parse_review_notes(ctx, data)
+
     # Blocs d'actions non atteignables depuis l'arbre : signalés comme erreur,
     # une consigne qui ne peut jamais s'afficher n'a pas de raison d'exister.
     if tree is not None:
@@ -764,5 +791,6 @@ def parse_protocol(data: Any, file: str, expected_id: str | None = None) -> tupl
         status=status, validated_by=validators, sources=sources, call_emergency_first=call_first,
         decision_tree=tree, action_blocks=blocks, red_flags=red_flags, do_not=do_not,
         variants=variants, vision_checkpoints=tuple(vision or ()), incomplete=bool(incomplete), file=file,
+        review_notes=review_notes,
     )
     return proto, [], switches

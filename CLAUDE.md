@@ -315,7 +315,10 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 - [x] `apps/firstaid/apps.py` → refus de démarrer si un protocole est invalide
 - [x] `apps/firstaid/protocols/unconscious_breathing.yaml` → brouillon non validé, bilingue, 33 étapes sourcées
 - [x] `apps/firstaid/protocols/cardiac_arrest.yaml` → brouillon non validé, bilingue, 3 variantes, RCP avec/sans insufflations, DAE
-- [x] `apps/firstaid/tests.py` → 30 tests (`manage.py test apps.firstaid`)
+- [x] `apps/firstaid/tests.py` → 38 tests (`manage.py test apps.firstaid`)
+- [x] `apps/firstaid/review.py` + `management/commands/firstaid_review.py` → dossier de relecture PDF
+      (`python manage.py firstaid_review --out <dossier> [--lang fr|en|both]`, un PDF par protocole et par langue)
+- [x] champ YAML optionnel `review_notes: [{fr, en}]` → points à trancher par le médecin, rendus en fin de PDF
 - [ ] Validation médicale (`validated_by` + `status: validated`) avant tout endpoint public
 - [ ] Endpoints publics (n'appellent QUE `publishable_protocols()`)
 

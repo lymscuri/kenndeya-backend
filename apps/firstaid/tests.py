@@ -97,7 +97,7 @@ class LoaderValidTests(SimpleTestCase):
         reg.load(REAL)
         p = reg.all_protocols()['cardiac_arrest']
         self.assertFalse(p.incomplete)
-        self.assertEqual(p.version, 3)
+        self.assertEqual(p.version, 4)
         self.assertEqual(p.status, 'draft_unvalidated')
         self.assertEqual(p.validated_by, ())
         self.assertNotIn('cardiac_arrest', reg.publishable_protocols())
@@ -373,3 +373,121 @@ class ProductionSettingsTests(SimpleTestCase):
                 if k.startswith('config.settings'):
                     sys.modules.pop(k)
             sys.modules.update(saved_modules)
+
+
+class ReviewNotesTests(_RejectMixin, SimpleTestCase):
+
+    def test_real_review_notes_loaded(self):
+        protocols = load_protocols(REAL)
+        self.assertEqual(len(protocols['unconscious_breathing'].review_notes), 3)
+        self.assertEqual(len(protocols['cardiac_arrest'].review_notes), 12)
+        for p in protocols.values():
+            for n in p.review_notes:
+                self.assertTrue(n.fr.strip() and n.en.strip())
+            self.assertEqual(len(p.localized('fr')['review_notes']), len(p.review_notes))
+
+    def test_empty_review_notes_accepted(self):
+        with _TmpProtocols() as d:
+            path = d / MAIN
+            text = path.read_text(encoding='utf-8')
+            start = text.index('review_notes:\n')
+            end = text.index('# Réservé : points de contrôle caméra')
+            path.write_text(text[:start] + 'review_notes: []\n\n' + text[end:], encoding='utf-8')
+            self.assertEqual(load_protocols(d)['unconscious_breathing'].review_notes, ())
+
+    def test_missing_review_notes_accepted(self):
+        with _TmpProtocols() as d:
+            path = d / MAIN
+            text = path.read_text(encoding='utf-8')
+            start = text.index('review_notes:\n')
+            end = text.index('# Réservé : points de contrôle caméra')
+            path.write_text(text[:start] + text[end:], encoding='utf-8')
+            self.assertEqual(load_protocols(d)['unconscious_breathing'].review_notes, ())
+
+    def test_mistyped_review_notes_rejected(self):
+        with _TmpProtocols() as d:
+            path = d / MAIN
+            text = path.read_text(encoding='utf-8')
+            start = text.index('review_notes:\n')
+            end = text.index('# Réservé : points de contrôle caméra')
+            path.write_text(text[:start] + 'review_notes: "une seule chaîne"\n\n' + text[end:], encoding='utf-8')
+            self._assert_rejected(d, "'review_notes' doit être une liste")
+        with _TmpProtocols() as d:
+            path = d / MAIN
+            text = path.read_text(encoding='utf-8')
+            start = text.index('review_notes:\n')
+            end = text.index('# Réservé : points de contrôle caméra')
+            path.write_text(text[:start] + 'review_notes:\n  - fr: Seulement en français\n\n' + text[end:],
+                            encoding='utf-8')
+            self._assert_rejected(d, "review_notes[1]' : langue 'en' manquante")
+
+
+class ReviewCommandTests(SimpleTestCase):
+    """La commande firstaid_review produit un PDF par protocole et par langue."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        import shutil as _sh
+        from django.core.management import call_command
+        cls.tmp = Path(tempfile.mkdtemp(prefix='firstaid_review_'))
+        cls.pdftotext = _sh.which('pdftotext')
+        cls.stdout = __import__('io').StringIO()
+        call_command('firstaid_review', '--out', str(cls.tmp), stdout=cls.stdout)
+        cls.protocols = load_protocols(REAL)
+
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(cls.tmp, ignore_errors=True)
+        super().tearDownClass()
+
+    def _text(self, pdf: Path) -> str:
+        if not self.pdftotext:
+            self.skipTest('pdftotext absent')
+        import subprocess
+        out = subprocess.run([self.pdftotext, '-layout', str(pdf), '-'], capture_output=True, text=True, check=True)
+        import re
+        return re.sub(r'\s+', ' ', out.stdout)
+
+    def test_four_pdfs_named_by_protocol_lang_version(self):
+        names = sorted(p.name for p in self.tmp.glob('*.pdf'))
+        self.assertEqual(names, [
+            'cardiac_arrest_en_v4.pdf', 'cardiac_arrest_fr_v4.pdf',
+            'unconscious_breathing_en_v3.pdf', 'unconscious_breathing_fr_v3.pdf',
+        ])
+        for p in self.tmp.glob('*.pdf'):
+            self.assertGreater(p.stat().st_size, 5000, p.name)
+            self.assertEqual(p.read_bytes()[:5], b'%PDF-', p.name)
+        self.assertIn('4 PDF', self.stdout.getvalue())
+
+    def test_pdf_contains_only_its_language(self):
+        import re
+        for pid, proto in self.protocols.items():
+            for lang, other in (('fr', 'en'), ('en', 'fr')):
+                text = self._text(self.tmp / f'{pid}_{lang}_v{proto.version}.pdf')
+                for t in proto.all_texts():
+                    foreign = t.get(other)
+                    pattern = r'(?<!\w)' + re.escape(re.sub(r'\s+', ' ', foreign)) + r'(?!\w)'
+                    self.assertIsNone(re.search(pattern, text), f'{pid}/{lang} contient « {foreign} »')
+                # et les textes courts de sa propre langue y figurent
+                for t in proto.all_texts():
+                    own = re.sub(r'\s+', ' ', t.get(lang))
+                    if len(own) <= 60:
+                        self.assertIn(own, text, f'{pid}/{lang} ne contient pas « {own} »')
+
+    def test_pdf_has_control_headers_and_footer(self):
+        text = self._text(self.tmp / 'cardiac_arrest_fr_v4.pdf')
+        for needle in ('cardiac_arrest', 'Version', '4', 'draft_unvalidated', 'NON VALIDÉ',
+                       settings.EMERGENCY_NUMBER, 'IFRC 2025 EN p.162', 'cardiac_arrest.yaml version 4',
+                       'Points à trancher par le médecin', '☐ OK'):
+            self.assertIn(needle, text, needle)
+
+    def test_lang_option_limits_output(self):
+        from django.core.management import call_command
+        tmp = Path(tempfile.mkdtemp(prefix='firstaid_review_fr_'))
+        try:
+            call_command('firstaid_review', '--out', str(tmp), '--lang', 'fr', stdout=__import__('io').StringIO())
+            self.assertEqual(sorted(p.name for p in tmp.glob('*.pdf')),
+                             ['cardiac_arrest_fr_v4.pdf', 'unconscious_breathing_fr_v3.pdf'])
+        finally:
+            shutil.rmtree(tmp, ignore_errors=True)

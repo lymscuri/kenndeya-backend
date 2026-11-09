@@ -40,7 +40,7 @@ description:
     abnormally (gasping, irregular or noisy breaths). Their heart has stopped
     pumping: access emergency services and start CPR immediately, using a
     defibrillator as soon as one is available.
-version: 3
+version: 4
 updated_at: 2026-11-09
 status: draft_unvalidated
 validated_by: []
@@ -664,6 +664,94 @@ do_not:
       fr: Ne décollez pas les électrodes une fois posées, même inversées.
       en: Do not remove the pads once applied, even if they are reversed.
     source_page: {source: ifrc_2025_en, page: 198}
+
+# Points à trancher par le médecin relecteur (texte libre, bilingue, sans
+# limite de mots). Rendus dans le dossier de relecture (firstaid_review).
+review_notes:
+  - fr: >-
+      Ordre enfant/bébé : insufflations d'abord, selon la Key action (p.186) et
+      la bonne pratique (p.187). Les étapes numérotées p.188 listent pourtant
+      les 30 compressions avant les 2 insufflations initiales. Confirmer l'ordre.
+    en: >-
+      Child/baby order: rescue breaths first, following the Key action (p.186)
+      and the good practice point (p.187). Yet the numbered steps on p.188 list
+      30 compressions before the 2 initial breaths. Confirm the order.
+  - fr: >-
+      Insufflations initiales : 2 (p.188). L'IFRC laisse les programmes choisir
+      2 ou 5 (p.190). Garder 2 ?
+    en: >-
+      Initial rescue breaths: 2 (p.188). IFRC lets programmes choose 2 or 5
+      (p.190). Keep 2?
+  - fr: >-
+      Ratio 15:2 réservé aux secouristes formés ou à deux secouristes (p.188-189),
+      non inclus : grand public = 30:2.
+    en: >-
+      15:2 ratio reserved for trained providers or two rescuers (p.188-189), not
+      included: lay public = 30:2.
+  - fr: >-
+      Bébé : technique à deux doigts retenue. La méthode des deux pouces mains
+      encerclant le thorax, préférée chez le nouveau-né (p.186), n'est pas décrite.
+    en: >-
+      Baby: two-finger technique kept. The two-thumb-encircling method, preferred
+      in newborns (p.186), is not described.
+  - fr: >-
+      Adolescent : « RCP avec insufflations préférée » (p.161) n'est pas
+      différencié de l'adulte dans l'arbre, seulement dans le libellé de variante.
+    en: >-
+      Adolescent: "CPR with rescue breaths is preferred" (p.161) is not
+      distinguished from adults in the tree, only in the variant label.
+  - fr: >-
+      Seul sans haut-parleur, enfant/bébé : « une minute de RCP avant d'aller
+      appeler » (p.188) non inclus, car contraire à l'affichage « appel d'abord ».
+      À arbitrer selon la disponibilité des SMU en Guinée.
+    en: >-
+      Alone without speakerphone, child/baby: "perform CPR for one minute before
+      pausing to call" (p.188) not included, as it conflicts with the
+      call-first banner. Decide according to EMS availability in Guinea.
+  - fr: >-
+      DAE : bloc isolé derrière la question « DAE disponible ? ». Non inclus :
+      rasage, soutien-gorge, forte poitrine, placement antéro-latéral détaillé,
+      « seul et DAE visible : aller le chercher » (p.198), écart 1-2 cm entre
+      électrodes (p.189). Garder le bloc DAE pour le contexte guinéen ?
+    en: >-
+      AED: isolated block behind the "AED available?" question. Not included:
+      chest hair removal, bra, large breasts, detailed anterolateral placement,
+      "alone and AED visible: go and get it" (p.198), 1-2 cm gap between pads
+      (p.189). Keep the AED block for the Guinean context?
+  - fr: >-
+      Arrêt de la RCP : règle « 20 minutes sans SMU, sauf noyade et hypothermie »
+      (adaptation locale p.188) et dignité sans soins avancés (p.161) non mises
+      en étape. Décision pour la Guinée.
+    en: >-
+      Stopping CPR: the "20 minutes without EMS, except drowning and hypothermia"
+      rule (local adaptation p.188) and dignity without advanced care (p.161)
+      are not steps. Decision for Guinea.
+  - fr: >-
+      Tuberculose : l'IFRC permet de décourager les insufflations en zone de forte
+      prévalence (p.164, p.189). La question « acceptez-vous le bouche-à-bouche ? »
+      laisse le choix à l'utilisateur ; imposer compressions seules ?
+    en: >-
+      Tuberculosis: IFRC allows discouraging rescue breaths where prevalence is
+      high (p.164, p.189). The "willing to give mouth-to-mouth?" question leaves
+      the choice to the user; impose compression-only instead?
+  - fr: >-
+      Noyade et hypothermie : « continuer la RCP même sans défibrillation » (p.162)
+      non inclus ; scénario séparé à prévoir.
+    en: >-
+      Drowning and hypothermia: "continue CPR even when defibrillation is not
+      feasible" (p.162) not included; separate scenario to plan.
+  - fr: >-
+      Convulsions brèves possibles au début d'un arrêt cardiaque (p.161) : non
+      mentionnées, à relier à un futur protocole « convulsions ».
+    en: >-
+      Brief seizure-like activity possible at the start of cardiac arrest (p.161):
+      not mentioned, to link with a future "seizure" protocol.
+  - fr: >-
+      Timer de 18 secondes sur les séries de 30 compressions : déduit de 100 à 120
+      par minute (15 à 18 s), ce n'est pas une valeur IFRC explicite.
+    en: >-
+      18-second timer on 30-compression series: derived from 100 to 120 per
+      minute (15 to 18 s), not an explicit IFRC value.
 
 # Réservé : points de contrôle caméra que le médecin rédigera. Doit rester vide.
 vision_checkpoints: []

@@ -44,6 +44,9 @@ sentry-sdk>=1.39.0
 # Protocoles premiers secours (YAML)
 PyYAML>=6.0
 
+# Dossier de relecture médicale (PDF)
+reportlab>=4.0
+
 # Utilitaires
 python-dateutil>=2.8.2
 pytz>=2023.3

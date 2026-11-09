@@ -30,7 +30,7 @@ description:
     The person does not respond to sound or touch, but their chest rises and
     their breathing is regular. Keep their airway open by placing them in the
     recovery position and call emergency services.
-version: 2
+version: 3
 updated_at: 2026-11-09
 status: draft_unvalidated
 validated_by: []
@@ -337,6 +337,33 @@ do_not:
       fr: N'utilisez pas la position latérale si vous suspectez une blessure de la colonne.
       en: Do not use the recovery position if you suspect a spine injury.
     source_page: {source: ifrc_2025_en, page: 153}
+
+# Points à trancher par le médecin relecteur (texte libre, bilingue, sans
+# limite de mots). Rendus dans le dossier de relecture (firstaid_review).
+review_notes:
+  - fr: >-
+      La manœuvre de poussée de la mâchoire (jaw thrust, IFRC 2025 p.152-153)
+      n'a pas été traduite en étape grand public ; seule la bascule de la tête
+      avec menton relevé est proposée. Faut-il l'ajouter ?
+    en: >-
+      The jaw thrust manoeuvre (IFRC 2025 p.152-153) was not turned into a
+      lay-person step; only head-tilt-chin-lift is offered. Should it be added?
+  - fr: >-
+      Cas « secours éloignés et au moins deux secouristes : tourner la personne
+      sur le côté en gardant l'alignement de la colonne » (p.154) omis comme
+      trop technique. À inclure ou non ?
+    en: >-
+      Case "medical care far away and more than one provider: turn the person
+      onto their side while maintaining spinal alignment" (p.154) left out as
+      too technical. Include it or not?
+  - fr: >-
+      La question « Suspectez-vous une blessure à la colonne vertébrale ? » ne
+      donne aucun indice (chute, accident, choc violent) faute d'extrait IFRC
+      explicite. Faut-il en ajouter pour le grand public ?
+    en: >-
+      The question "Do you suspect a spine injury?" gives no cue (fall, road
+      accident, violent impact) because no explicit IFRC extract supports one.
+      Should cues be added for lay users?
 
 # Réservé : points de contrôle caméra que le médecin rédigera. Doit rester vide.
 vision_checkpoints: []
