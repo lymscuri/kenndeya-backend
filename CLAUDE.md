@@ -510,7 +510,7 @@ celery -A config beat --loglevel=info
 | `EMERGENCY_NUMBER` | optionnel | Numéro d'urgence affiché par firstaid (défaut 442) |
 | `EMERGENCY_PLACES_CONTACT` | optionnel | Contact dans le User-Agent envoyé à Overpass (défaut admin@kendeya.com) |
 | `EMERGENCY_PLACES_TIMEOUT` | optionnel | Timeout par miroir Overpass en secondes (défaut 8) |
-| `EMERGENCY_PLACES_WARM_POINTS` | optionnel | Points préchauffés toutes les 4 h, `nom:lat:lon` séparés par des virgules (défaut : 8 villes de Guinée + Addis-Abeba, à retirer) |
+| `EMERGENCY_PLACES_WARM_POINTS` | optionnel | Points préchauffés toutes les 4 h, `nom:lat:lon` séparés par des virgules (défaut : 8 villes de Guinée ; un point couvert par un import répond depuis la base sans Overpass) |
 | `EMERGENCY_PLACES_COUNTRIES` | optionnel | Pays importés chaque dimanche 03:00 UTC (`import_osm_health`), codes ISO2 séparés par des virgules (défaut `GN` ; `GN,ET` sur Railway pendant le séjour du DG à Addis) |
 | `GROQ_API_KEY` | ⚠️ classify | Clé Groq pour `POST firstaid/classify/` et `answer/` ; absente → 503 `classifier_unavailable` |
 | `GROQ_MODEL_FAST` | optionnel | Modèle Groq de classification (défaut `openai/gpt-oss-20b`, comme l'app mobile) |

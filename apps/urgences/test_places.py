@@ -375,7 +375,7 @@ class WarmTests(TestCase):
         pts = warm.parse_points(["N'Zérékoré:7.756:-8.818", 'mauvais', 'x:91:0', 'Labé:11.318:-12.283'])
         self.assertEqual([(p.name, p.lat, p.lon) for p in pts],
                          [("N'Zérékoré", 7.756, -8.818), ('Labé', 11.318, -12.283)])
-        self.assertEqual(len(warm.warm_points()), 9)                     # défaut des réglages, Addis compris
+        self.assertEqual(len(warm.warm_points()), 8)                     # défaut des réglages : 8 villes de Guinée
 
     @override_settings(EMERGENCY_PLACES_WARM_POINTS=POINTS)
     def test_command_processes_all_points_even_if_one_fails(self):

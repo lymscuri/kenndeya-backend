@@ -296,11 +296,11 @@ FIRSTAID_CLASSIFY_MIN = env.float('FIRSTAID_CLASSIFY_MIN', default=0.6)  # confi
 EMERGENCY_PLACES_CONTACT = env('EMERGENCY_PLACES_CONTACT', default='admin@kendeya.com')
 EMERGENCY_PLACES_TIMEOUT = env.float('EMERGENCY_PLACES_TIMEOUT', default=8.0)   # secondes par miroir Overpass
 # Points préchauffés toutes les 4 h (warm_emergency_places), format "nom:lat:lon".
-# Addis-Abeba : tests du DG en déplacement — à retirer après.
+# Seuls les points hors pays importés (EMERGENCY_PLACES_COUNTRIES) sollicitent Overpass ;
+# un point couvert par un import répond depuis la base (source "db") sans appel réseau.
 EMERGENCY_PLACES_WARM_POINTS = env.list('EMERGENCY_PLACES_WARM_POINTS', default=[
     'Conakry:9.537:-13.678', 'Kindia:10.056:-12.866', 'Labé:11.318:-12.283', 'Kankan:10.385:-9.306',
     "N'Zérékoré:7.756:-8.818", 'Boké:10.940:-14.291', 'Mamou:10.376:-12.084', 'Faranah:10.040:-10.743',
-    'Addis-Abeba:9.03:38.74',
 ])
 # Pays dont les lieux de santé OSM sont importés chaque semaine (import_osm_health, Geofabrik),
 # codes ISO 3166-1 alpha-2. "GN,ET" sur Railway pendant le séjour du DG à Addis-Abeba.

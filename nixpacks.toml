@@ -1,4 +1,6 @@
-# Railway (Nixpacks). pyosmium (paquet osmium, import des lieux de santé OSM)
-# charge libexpat.so.1 à l'exécution : absente de l'image par défaut.
+# Railway (Nixpacks). Python vient de Nix : son loader ignore /usr/lib/x86_64-linux-gnu.
+# Le wheel manylinux de pyosmium (paquet osmium, import des lieux de santé OSM) a besoin
+# de libexpat.so.1, libz.so.1, libstdc++.so.6 et libgcc_s.so.1 : on les ajoute depuis le
+# store Nix à LD_LIBRARY_PATH (vérifié dans le conteneur le 2026-11-10).
 [phases.setup]
-aptPkgs = ["libexpat1"]
+nixLibs = ["expat", "zlib", "stdenv.cc.cc.lib"]
