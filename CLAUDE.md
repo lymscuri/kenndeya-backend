@@ -323,11 +323,29 @@ throttle `emergency_places` (60/h par IP), `Cache-Control: no-store`. **`hospita
       scheduler SMS, lancé par chaque worker gunicorn) : premier passage 2 min après le démarrage, puis toutes
       les 4 h. Cache frais 6 h, stale 7 jours. Miroirs : overpass-api.de, kumi.systems, private.coffee
       (timeout `EMERGENCY_PLACES_TIMEOUT`, 8 s). Jamais overpass.osm.ch (Suisse seulement).
-- [x] `apps/urgences/test_places.py` → 21 tests (`manage.py test apps.urgences.test_places`)
+- [x] `apps/urgences/models.py` → `OsmHealthPlace` (migration 0002) : lieux de santé OSM importés par pays
+      (osm_id unique « node/123 », kind, name nullable, lat/lon, phone, address, is_24h/has_emergency/has_maternity
+      tri-état, country ISO2, tags bruts JSON pour audit, imported_at ; index country et (lat, lon)).
+- [x] `apps/urgences/osm_import.py` + `management/commands/import_osm_health.py` →
+      `python manage.py import_osm_health [--country GN] [--country ET]` (défaut : `EMERGENCY_PLACES_COUNTRIES`) :
+      télécharge `https://download.geofabrik.de/africa/<pays>-latest.osm.pbf` (GN→guinea, ET→ethiopia, SN, ML, SL,
+      LR, CI, GW ; User-Agent Kendeya) dans un dossier temporaire, parse avec pyosmium (`osmium`) en 3 passes sans
+      index de localisation (relations → ways membres → nœuds ; centroïde = moyenne des nœuds), filtre
+      amenity in (hospital, clinic, pharmacy, doctors→clinic) et healthcare in (hospital, clinic, pharmacy, doctor,
+      centre/health_post/birthing_centre/midwife→health_center), upsert par osm_id, supprime les lieux du pays
+      absents de l'import, journalise taille/durées/nb par kind/créés/mis à jour/supprimés, supprime le fichier
+      temporaire, verrou cache `places:import:lock` (TTL 2 h). Un pays en échec n'arrête pas les autres.
+- [x] job APScheduler `import_osm_health` (`apps/sms/scheduler.py`) : chaque dimanche 03:00 UTC, pays
+      `EMERGENCY_PLACES_COUNTRIES`, verrou cache (un seul worker).
+- [x] `get_places` : si le point est couvert par un import (≥ 1 `OsmHealthPlace` dans un carré de 2° autour), la
+      partie OSM vient de la base (boîte englobante puis haversine) → `source: "db"`, Overpass jamais appelé ;
+      fusion avec le référentiel `Hospital` inchangée. Hors couverture : chemin Overpass/cache ci-dessus intact.
+- [x] `apps/urgences/test_places.py` → 23 tests ; `apps/urgences/test_osm_import.py` → 8 tests (fixture .osm.pbf
+      construite avec pyosmium, téléchargement mocké)
 
 ```
 GET /api/v1/emergency/places/?lat=&lon=&radius=&lang=   lat/lon obligatoires, radius m (défaut 5000, max 25000), lang fr|en
-→ {success, data: {center{lat,lon}, radius, generated_at, source: cache|live|stale|referential_only, places: [...]}}
+→ {success, data: {center{lat,lon}, radius, generated_at, source: db|cache|live|stale|referential_only, places: [...]}}
   lieu : id (osm:node:123 | ref:<uuid>), name, kind (hospital|clinic|pharmacy|health_center), lat, lon, distance_m,
          address, phone, is_24h, has_emergency, has_maternity (true|false|null = inconnu), origin (osm|referential|merged)
   trié par distance
@@ -493,6 +511,7 @@ celery -A config beat --loglevel=info
 | `EMERGENCY_PLACES_CONTACT` | optionnel | Contact dans le User-Agent envoyé à Overpass (défaut admin@kendeya.com) |
 | `EMERGENCY_PLACES_TIMEOUT` | optionnel | Timeout par miroir Overpass en secondes (défaut 8) |
 | `EMERGENCY_PLACES_WARM_POINTS` | optionnel | Points préchauffés toutes les 4 h, `nom:lat:lon` séparés par des virgules (défaut : 8 villes de Guinée + Addis-Abeba, à retirer) |
+| `EMERGENCY_PLACES_COUNTRIES` | optionnel | Pays importés chaque dimanche 03:00 UTC (`import_osm_health`), codes ISO2 séparés par des virgules (défaut `GN` ; `GN,ET` sur Railway pendant le séjour du DG à Addis) |
 | `GROQ_API_KEY` | ⚠️ classify | Clé Groq pour `POST firstaid/classify/` et `answer/` ; absente → 503 `classifier_unavailable` |
 | `GROQ_MODEL_FAST` | optionnel | Modèle Groq de classification (défaut `openai/gpt-oss-20b`, comme l'app mobile) |
 | `FIRSTAID_CLASSIFY_MIN` | optionnel | Confiance minimale pour retenir un scénario (défaut 0.6) |

@@ -1,7 +1,11 @@
 """
-Lieux d'urgence « autour de moi » : OpenStreetMap (Overpass) + référentiel Hospital.
+Lieux d'urgence « autour de moi » : OpenStreetMap + référentiel Hospital.
 
-Exécuté côté serveur à la place de l'appel direct de l'app à Overpass :
+Partie OSM, dans l'ordre :
+1. base importée (OsmHealthPlace, import Geofabrik par pays via import_osm_health) si le
+   point est couvert : au moins un lieu importé dans un carré de 2° autour → source "db",
+   aucun appel réseau ;
+2. sinon Overpass, exécuté côté serveur à la place de l'appel direct de l'app :
 - miroirs Overpass en repli, timeout, User-Agent identifié, 429 respecté ;
 - cache 6 h par cellule géographique (~1 km) + copie « stale » 7 jours ;
 - préchauffage périodique des villes (warm.py) : l'app ne dépend plus d'Overpass en temps réel ;
@@ -34,6 +38,7 @@ MERGE_DISTANCE_M = 60
 CACHE_TTL = 6 * 3600              # cache frais ; le préchauffage toutes les 4 h le renouvelle avant expiration
 STALE_TTL = 7 * 24 * 3600         # copie stale : couvre une longue panne d'Overpass
 CACHE_VERSION = 'v1'
+DB_COVER_DEG = 1.0                # demi-côté du carré de couverture de la base importée (2° de côté)
 OVERPASS_TIMEOUT_DEFAULT = 8      # secondes par miroir (réglage EMERGENCY_PLACES_TIMEOUT)
 OVERPASS_MIRRORS = (
     'https://overpass-api.de/api/interpreter',
@@ -149,6 +154,39 @@ def _tri(value: str | None, yes: tuple[str, ...], no: tuple[str, ...]) -> bool |
     return None
 
 
+MATERNITY_WORDS = ('maternity', 'obstetric', 'birthing', 'midwife')
+
+
+def address_from_tags(tags: dict[str, str]) -> str | None:
+    """Adresse reconstruite depuis addr:* (numéro, rue, ville), sinon addr:full, sinon None."""
+    parts = []
+    if tags.get('addr:street'):
+        if tags.get('addr:housenumber'):
+            parts.append(tags['addr:housenumber'])
+        parts.append(tags['addr:street'])
+    if tags.get('addr:city'):
+        parts.append(tags['addr:city'])
+    return ', '.join(parts) if parts else (tags.get('addr:full') or None)
+
+
+def name_from_tags(tags: dict[str, str]) -> str | None:
+    return tags.get('name') or tags.get('name:fr') or tags.get('name:en') or None
+
+
+def phone_from_tags(tags: dict[str, str]) -> str | None:
+    return tags.get('phone') or tags.get('contact:phone') or None
+
+
+def maternity_from_tags(tags: dict[str, str]) -> bool | None:
+    """True si healthcare / healthcare:speciality évoque la maternité, sinon None (inconnu)."""
+    healthcare = ' '.join(filter(None, (tags.get('healthcare'), tags.get('healthcare:speciality')))).lower()
+    return True if any(w in healthcare for w in MATERNITY_WORDS) else None
+
+
+def emergency_from_tags(tags: dict[str, str]) -> bool | None:
+    return _tri(tags.get('emergency'), ('yes',), ('no',))
+
+
 def osm_to_places(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Convertit les éléments Overpass au format commun. name=None si sans nom (gardé)."""
     places = []
@@ -162,31 +200,73 @@ def osm_to_places(elements: list[dict[str, Any]]) -> list[dict[str, Any]]:
         kind = amenity if amenity in ('hospital', 'clinic', 'pharmacy') else None
         if kind is None:
             continue
-        parts = []
-        if tags.get('addr:street'):
-            if tags.get('addr:housenumber'):
-                parts.append(tags['addr:housenumber'])
-            parts.append(tags['addr:street'])
-        if tags.get('addr:city'):
-            parts.append(tags['addr:city'])
-        address = ', '.join(parts) if parts else (tags.get('addr:full') or None)
         opening = tags.get('opening_hours')
-        healthcare = ' '.join(filter(None, (tags.get('healthcare'), tags.get('healthcare:speciality')))).lower()
-        has_maternity = True if any(w in healthcare for w in ('maternity', 'obstetric', 'birthing', 'midwife')) else None
         places.append({
             'id': f"osm:{el['type']}:{el['id']}",
-            'name': tags.get('name') or tags.get('name:fr') or tags.get('name:en') or None,
+            'name': name_from_tags(tags),
             'kind': kind,
             'lat': float(lat),
             'lon': float(lon),
-            'address': address,
-            'phone': tags.get('phone') or tags.get('contact:phone') or None,
+            'address': address_from_tags(tags),
+            'phone': phone_from_tags(tags),
             'is_24h': True if opening == '24/7' else (False if opening else None),
-            'has_emergency': _tri(tags.get('emergency'), ('yes',), ('no',)),
-            'has_maternity': has_maternity,
+            'has_emergency': emergency_from_tags(tags),
+            'has_maternity': maternity_from_tags(tags),
             'origin': 'osm',
         })
     return places
+
+
+# ------------------------------------------------------------------------------
+# Base importée (OsmHealthPlace, import Geofabrik par pays)
+# ------------------------------------------------------------------------------
+
+def _now_iso() -> str:
+    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
+
+
+def db_covers(lat: float, lon: float) -> bool:
+    """Le point est couvert par un import si au moins un lieu existe dans un carré de 2° autour."""
+    from .models import OsmHealthPlace
+    return OsmHealthPlace.objects.filter(
+        lat__gte=lat - DB_COVER_DEG, lat__lte=lat + DB_COVER_DEG,
+        lon__gte=lon - DB_COVER_DEG, lon__lte=lon + DB_COVER_DEG,
+    ).exists()
+
+
+def db_places(lat: float, lon: float, radius: int) -> tuple[list[dict[str, Any]], str]:
+    """
+    (lieux au format commun, generated_at) depuis la base importée : filtre par
+    boîte englobante (index lat/lon) puis haversine exacte. generated_at = import
+    le plus récent parmi les lieux retenus (ou maintenant si aucun).
+    """
+    from .models import OsmHealthPlace
+    dlat = radius / 111_320.0
+    dlon = radius / (111_320.0 * max(math.cos(math.radians(lat)), 0.01))
+    qs = OsmHealthPlace.objects.filter(
+        lat__gte=lat - dlat, lat__lte=lat + dlat, lon__gte=lon - dlon, lon__lte=lon + dlon,
+    )
+    places, latest = [], None
+    for row in qs:
+        if haversine_m(lat, lon, row.lat, row.lon) > radius:
+            continue
+        places.append({
+            'id': 'osm:' + row.osm_id.replace('/', ':', 1),
+            'name': row.name or None,
+            'kind': row.kind,
+            'lat': row.lat,
+            'lon': row.lon,
+            'address': row.address or None,
+            'phone': row.phone or None,
+            'is_24h': row.is_24h,
+            'has_emergency': row.has_emergency,
+            'has_maternity': row.has_maternity,
+            'origin': 'osm',
+        })
+        if latest is None or row.imported_at > latest:
+            latest = row.imported_at
+    generated_at = latest.replace(microsecond=0).isoformat() if latest else _now_iso()
+    return places, generated_at
 
 
 # ------------------------------------------------------------------------------
@@ -270,12 +350,8 @@ def merge_places(referential: list[dict[str, Any]], osm: list[dict[str, Any]]) -
 @dataclass(frozen=True)
 class PlacesResult:
     places: list[dict[str, Any]]
-    source: str            # cache | live | stale | referential_only
+    source: str            # db | cache | live | stale | referential_only
     generated_at: str      # ISO 8601 UTC de la collecte OSM (ou de la réponse)
-
-
-def _now_iso() -> str:
-    return datetime.now(timezone.utc).replace(microsecond=0).isoformat()
 
 
 def _osm_places(lat: float, lon: float, radius: int) -> tuple[list[dict[str, Any]], str, str]:
@@ -301,11 +377,15 @@ def _osm_places(lat: float, lon: float, radius: int) -> tuple[list[dict[str, Any
 def get_places(lat: float, lon: float, radius: int, lang: str = 'fr') -> PlacesResult:
     """Lieux fusionnés, localisés, triés par distance, avec la source effective."""
     referential = referential_places(lat, lon, radius)
-    try:
-        osm, source, generated_at = _osm_places(lat, lon, radius)
-    except OverpassError:
-        logger.warning('overpass indisponible et aucun cache : référentiel seul')
-        osm, source, generated_at = [], 'referential_only', _now_iso()
+    if db_covers(lat, lon):
+        osm, generated_at = db_places(lat, lon, radius)
+        source = 'db'
+    else:
+        try:
+            osm, source, generated_at = _osm_places(lat, lon, radius)
+        except OverpassError:
+            logger.warning('overpass indisponible et aucun cache : référentiel seul')
+            osm, source, generated_at = [], 'referential_only', _now_iso()
     places = merge_places(referential, osm)
     names = GENERIC_NAMES.get(lang, GENERIC_NAMES['fr'])
     out = []

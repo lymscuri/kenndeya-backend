@@ -54,3 +54,6 @@ reportlab>=4.0
 
 # Classification firstaid : appel HTTP à l'API Groq (compatible OpenAI)
 requests>=2.31
+
+# Import des lieux de santé OSM par pays (apps.urgences.osm_import) : lecture .osm.pbf
+osmium>=4.0

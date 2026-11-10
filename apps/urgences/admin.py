@@ -3,7 +3,7 @@ Configuration de l'admin Django pour l'application urgences.
 """
 
 from django.contrib import admin
-from .models import Secourist, Hospital, EmergencyAlert
+from .models import Secourist, Hospital, EmergencyAlert, OsmHealthPlace
 
 
 @admin.register(Secourist)
@@ -138,3 +138,20 @@ class EmergencyAlertAdmin(admin.ModelAdmin):
             return obj.secourist.user.get_full_name()
         return '-'
     get_secourist_name.short_description = 'Secouriste'
+
+
+@admin.register(OsmHealthPlace)
+class OsmHealthPlaceAdmin(admin.ModelAdmin):
+    """Lieux de santé OSM importés (lecture seule : la source de vérité est l'import)."""
+
+    list_display = ('name', 'kind', 'country', 'osm_id', 'is_24h', 'has_emergency', 'has_maternity', 'imported_at')
+    list_filter = ('country', 'kind', 'is_24h', 'has_emergency', 'has_maternity')
+    search_fields = ('name', 'osm_id', 'address', 'phone')
+    ordering = ('country', 'kind', 'name')
+    readonly_fields = tuple(f.name for f in OsmHealthPlace._meta.fields)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False

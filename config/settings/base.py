@@ -302,6 +302,9 @@ EMERGENCY_PLACES_WARM_POINTS = env.list('EMERGENCY_PLACES_WARM_POINTS', default=
     "N'Zérékoré:7.756:-8.818", 'Boké:10.940:-14.291', 'Mamou:10.376:-12.084', 'Faranah:10.040:-10.743',
     'Addis-Abeba:9.03:38.74',
 ])
+# Pays dont les lieux de santé OSM sont importés chaque semaine (import_osm_health, Geofabrik),
+# codes ISO 3166-1 alpha-2. "GN,ET" sur Railway pendant le séjour du DG à Addis-Abeba.
+EMERGENCY_PLACES_COUNTRIES = env.list('EMERGENCY_PLACES_COUNTRIES', default=['GN'])
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {

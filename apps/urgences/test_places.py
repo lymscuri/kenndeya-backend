@@ -276,6 +276,48 @@ class PlacesApiTests(TestCase):
 
     # --- accès ---------------------------------------------------------------------------
 
+    # --- base importée (OsmHealthPlace) ---------------------------------------------------
+
+    def _import_rows(self):
+        from django.utils import timezone
+        from .models import OsmHealthPlace
+        now = timezone.now()
+        OsmHealthPlace.objects.create(osm_id='node/1', kind='pharmacy', lat=LAT + 0.001, lon=LON, country='GN',
+                                      imported_at=now, tags={'amenity': 'pharmacy'})
+        OsmHealthPlace.objects.create(osm_id='way/20', kind='hospital', name='Hôpital National Donka',
+                                      lat=LAT + 0.010, lon=LON, country='GN', is_24h=True, has_emergency=True,
+                                      phone='+224 622 00 00 00', imported_at=now)
+        OsmHealthPlace.objects.create(osm_id='node/9', kind='clinic', name='Trop loin', lat=LAT + 0.5, lon=LON,
+                                      country='GN', imported_at=now)                 # ~55 km : hors rayon
+        return now
+
+    def test_db_source_when_imported_and_overpass_never_called(self):
+        now = self._import_rows()
+        Hospital.objects.create(name='Hôpital National Donka', address='Route de Donka', city='Conakry',
+                                hospital_type='public', has_maternity=True,
+                                latitude=LAT + 0.0101, longitude=LON, is_active=True)   # ~11 m du way OSM
+        r = self.get(radius=5000)
+        self.assertEqual(r.status_code, 200)
+        data = r.json()['data']
+        self.assertEqual(data['source'], 'db')
+        self.assertEqual(data['generated_at'], now.replace(microsecond=0).isoformat())
+        self.assertEqual(self.post.call_count, 0)                                     # Overpass jamais appelé
+        self.assertEqual([p['id'] for p in data['places']], ['osm:node:1', 'ref:' + str(Hospital.objects.get().id)])
+        pharmacy, donka = data['places']
+        self.assertEqual(pharmacy['name'], 'Pharmacie (sans nom)')
+        self.assertEqual((donka['origin'], donka['is_24h'], donka['phone'], donka['has_maternity']),
+                         ('merged', True, '+224 622 00 00 00', True))                    # fusion référentiel inchangée
+        # second appel : toujours la base, toujours aucun appel réseau, rien en cache Overpass
+        self.assertEqual(self.get(radius=5000).json()['data']['source'], 'db')
+        self.assertEqual(self.post.call_count, 0)
+        self.assertIsNone(cache.get(cell_key(LAT, LON, 5000)))
+
+    def test_overpass_path_intact_outside_imported_coverage(self):
+        self._import_rows()
+        r = self.client.get(URL, {'lat': 9.03, 'lon': 38.74})                        # Addis : à > 1° de tout import
+        self.assertEqual(r.json()['data']['source'], 'live')
+        self.assertEqual(self.post.call_count, 1)
+
     def test_throttle_active(self):
         with mock.patch.dict(ScopedRateThrottleRates(), {'emergency_places': '2/hour'}):
             self.assertEqual(self.get().status_code, 200)

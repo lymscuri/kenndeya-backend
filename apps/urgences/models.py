@@ -267,3 +267,46 @@ class EmergencyAlert(models.Model):
 
     def __str__(self):
         return f"Alerte #{self.id} - {self.patient.get_full_name()} ({self.status})"
+
+
+class OsmHealthPlace(models.Model):
+    """
+    Lieu de santé OpenStreetMap importé par pays (extrait Geofabrik, commande
+    import_osm_health). Remplace Overpass en temps réel pour les pays importés.
+    `tags` conserve les tags OSM bruts pour audit ; les champs dérivés suivent
+    les mêmes règles tri-état que places.py (True / False / None = inconnu).
+    """
+    KIND_CHOICES = [
+        ('hospital', 'Hôpital'),
+        ('clinic', 'Clinique'),
+        ('pharmacy', 'Pharmacie'),
+        ('health_center', 'Centre de santé'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    osm_id = models.CharField(max_length=40, unique=True, verbose_name="Identifiant OSM")   # ex. "node/123"
+    kind = models.CharField(max_length=20, choices=KIND_CHOICES, verbose_name="Nature")
+    name = models.CharField(max_length=255, null=True, blank=True, verbose_name="Nom")
+    lat = models.FloatField(verbose_name="Latitude")
+    lon = models.FloatField(verbose_name="Longitude")
+    phone = models.CharField(max_length=64, blank=True, default='', verbose_name="Téléphone")
+    address = models.CharField(max_length=255, blank=True, default='', verbose_name="Adresse")
+    is_24h = models.BooleanField(null=True, blank=True, verbose_name="Ouvert 24h/24")
+    has_emergency = models.BooleanField(null=True, blank=True, verbose_name="Service d'urgence")
+    has_maternity = models.BooleanField(null=True, blank=True, verbose_name="Maternité")
+    country = models.CharField(max_length=2, verbose_name="Pays (ISO 3166-1)")
+    tags = models.JSONField(default=dict, blank=True, verbose_name="Tags OSM bruts")
+    imported_at = models.DateTimeField(verbose_name="Date d'import")
+
+    class Meta:
+        db_table = 'osm_health_places'
+        verbose_name = "Lieu de santé OSM"
+        verbose_name_plural = "Lieux de santé OSM"
+        ordering = ['country', 'kind', 'name']
+        indexes = [
+            models.Index(fields=['country']),
+            models.Index(fields=['lat', 'lon']),
+        ]
+
+    def __str__(self):
+        return f"{self.name or '(sans nom)'} [{self.kind}, {self.country}] {self.osm_id}"
