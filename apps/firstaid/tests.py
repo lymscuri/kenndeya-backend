@@ -815,6 +815,13 @@ class ClassifyApiTests(_ClassifyMixin, SimpleTestCase):
         self.assertIn('- cardiac_arrest : Personne inconsciente qui ne respire pas normalement', system)
         self.assertIn('- none', system)
         self.assertNotIn('Unresponsive', system)          # rien en anglais dans le prompt fr
+        # titre ET description du protocole, dans la langue du prompt
+        self.assertIn('— La personne ne réagit ni à la voix ni au toucher', system)
+        self.assertIn('— La personne ne réagit pas et ne respire pas', system)
+        # règle de routage, avec l'id d'entrée puisque unconscious_breathing est publiable
+        self.assertIn('Règles de routage', system)
+        self.assertIn('choisis unconscious_breathing : son parcours vérifie ensuite la respiration', system)
+        self.assertIn('la grossesse', system)
         self.assertEqual(user, 'mon frère est tombé, il ne répond pas mais il respire')
         self.assertNotIn('442', system)                    # pas de numéro d'urgence dans le prompt
 
@@ -830,6 +837,9 @@ class ClassifyApiTests(_ClassifyMixin, SimpleTestCase):
         self.assertTrue(system.startswith('You are a classifier.'))
         self.assertIn('- cardiac_arrest: Unresponsive person who is not breathing normally', system)
         self.assertNotIn('Personne inconsciente', system)  # rien en français dans le prompt en
+        self.assertIn('— The person does not respond and is not breathing', system)
+        self.assertIn('Routing rules', system)
+        self.assertIn('choose unconscious_breathing: its pathway then checks breathing', system)
 
     def test_none_scenario(self):
         r = self.classify("j'ai mal à la tête depuis ce matin",
@@ -886,6 +896,22 @@ class ClassifyApiTests(_ClassifyMixin, SimpleTestCase):
             data = r.json()['data']
             self.assertIsNone(data['scenario'])
             self.assertEqual(data['confidence'], 0.0)
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
+    def test_routing_rule_names_entry_only_when_publishable(self):
+        with _TmpProtocols() as d:
+            path = d / 'cardiac_arrest.yaml'
+            _replace_once(path, 'status: draft_unvalidated', 'status: validated')
+            _replace_once(path, 'validated_by: []\n', SIGNATURE)
+            from .loader import registry
+            registry.load(d)                     # cardiac_arrest publiable, unconscious_breathing brouillon
+            for lang in LANGS:
+                self.fake.calls.clear()
+                self.classify('x', lang=lang, outputs=['{"scenario": "none", "confidence": 1}'])
+                system, _ = self.fake.calls[0]
+                self.assertIn('cardiac_arrest', system)
+                self.assertNotIn('unconscious_breathing', system, lang)   # ni candidat, ni règle de routage
+                self.assertIn('Règles de routage' if lang == 'fr' else 'Routing rules', system)
 
     @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
     def test_no_publishable_means_no_model_call(self):
