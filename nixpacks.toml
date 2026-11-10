@@ -1,0 +1,4 @@
+# Railway (Nixpacks). pyosmium (paquet osmium, import des lieux de santé OSM)
+# charge libexpat.so.1 à l'exécution : absente de l'image par défaut.
+[phases.setup]
+aptPkgs = ["libexpat1"]
