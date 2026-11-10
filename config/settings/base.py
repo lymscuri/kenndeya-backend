@@ -172,6 +172,7 @@ REST_FRAMEWORK = {
     # publics de premiers secours, anonymes, lecture seule, mis en cache 1 h côté client.
     'DEFAULT_THROTTLE_RATES': {
         'firstaid': '120/hour',
+        'emergency_places': '60/hour',   # lieux d'urgence autour de moi, public
     },
 }
 
@@ -289,6 +290,10 @@ GROQ_MODEL_FAST = env('GROQ_MODEL_FAST', default='openai/gpt-oss-20b')  # même 
 GROQ_TIMEOUT = env.float('GROQ_TIMEOUT', default=8.0)                 # secondes
 GROQ_REASONING_EFFORT = env('GROQ_REASONING_EFFORT', default='low')  # gpt-oss/qwen3 ; '' pour l'omettre
 FIRSTAID_CLASSIFY_MIN = env.float('FIRSTAID_CLASSIFY_MIN', default=0.6)  # confiance minimale
+
+# Lieux d'urgence autour de moi (apps.urgences.places) : contact affiché dans le
+# User-Agent envoyé aux miroirs Overpass (politique d'usage d'OpenStreetMap).
+EMERGENCY_PLACES_CONTACT = env('EMERGENCY_PLACES_CONTACT', default='admin@kendeya.com')
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {

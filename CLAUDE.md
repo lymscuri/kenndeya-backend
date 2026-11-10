@@ -302,6 +302,32 @@ POST   /api/v1/reminders/test-send/   (dev only)
 
 ---
 
+### ✅ SPRINT 10 — Lieux d'urgence « autour de moi » (`apps/urgences/places.py`)
+
+Remplace l'appel direct de l'app à Overpass. Public (AllowAny, en urgence aucun compte requis),
+throttle `emergency_places` (60/h par IP), `Cache-Control: no-store`. **`hospitals/` reste authentifié.**
+
+- [x] `apps/urgences/places.py` → requête Overpass de l'app exécutée côté serveur (timeout 20 s, miroirs
+      overpass-api.de puis overpass.kumi.systems, un essai chacun, 429 jamais réessayé, User-Agent Kendeya +
+      `EMERGENCY_PLACES_CONTACT`), lieux sans nom gardés (« Pharmacie (sans nom) »), référentiel `Hospital`
+      (is_active, géolocalisé, dans le rayon) fusionné : < 60 m et nature compatible (même kind, ou
+      hôpital/clinique) → `origin: merged`, le référentiel gagne champ par champ s'il est renseigné.
+- [x] cache OSM 6 h par cellule ~1 km + rayon, copie « stale » 48 h ; Overpass KO → `stale` si possible,
+      sinon `referential_only`. Jamais de 5xx tant que la base répond. Chaque échec journalisé (miroir, code).
+- [x] `core/throttling.py` → `ScopedAnonThrottle` (ScopedRateThrottle ignore les vues `@api_view` : il lit
+      `view.throttle_scope`, absent) ; utilisé par firstaid et places
+- [x] `apps/urgences/test_places.py` → 13 tests (`manage.py test apps.urgences.test_places`)
+
+```
+GET /api/v1/emergency/places/?lat=&lon=&radius=&lang=   lat/lon obligatoires, radius m (défaut 5000, max 25000), lang fr|en
+→ {success, data: {center{lat,lon}, radius, generated_at, source: cache|live|stale|referential_only, places: [...]}}
+  lieu : id (osm:node:123 | ref:<uuid>), name, kind (hospital|clinic|pharmacy|health_center), lat, lon, distance_m,
+         address, phone, is_24h, has_emergency, has_maternity (true|false|null = inconnu), origin (osm|referential|merged)
+  trié par distance
+```
+
+---
+
 ### 🟡 SPRINT 9 — Premiers secours grand public (`apps/firstaid`) — EN COURS
 
 **Principe** : aucune consigne n'est produite par un modèle de langage. Chaque phrase vient d'un
@@ -457,6 +483,7 @@ celery -A config beat --loglevel=info
 | `DJANGO_SETTINGS_MODULE` | ✅ | `config.settings.staging` sur Railway (test) ; `config.settings.production` au lancement public |
 | `FIRSTAID_ALLOW_DRAFTS` | staging | `True` sur Railway (test) pour servir les protocoles brouillons ; ignorée en production |
 | `EMERGENCY_NUMBER` | optionnel | Numéro d'urgence affiché par firstaid (défaut 442) |
+| `EMERGENCY_PLACES_CONTACT` | optionnel | Contact dans le User-Agent envoyé à Overpass (défaut admin@kendeya.com) |
 | `GROQ_API_KEY` | ⚠️ classify | Clé Groq pour `POST firstaid/classify/` et `answer/` ; absente → 503 `classifier_unavailable` |
 | `GROQ_MODEL_FAST` | optionnel | Modèle Groq de classification (défaut `openai/gpt-oss-20b`, comme l'app mobile) |
 | `FIRSTAID_CLASSIFY_MIN` | optionnel | Confiance minimale pour retenir un scénario (défaut 0.6) |

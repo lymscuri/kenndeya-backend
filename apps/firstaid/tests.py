@@ -701,6 +701,14 @@ class PublicApiTests(SimpleTestCase):
             # le brouillon voisin reste invisible
             self.assertEqual(self.client.get(f'{self.LIST}cardiac_arrest/', {'lang': 'fr'}).status_code, 404)
 
+    def test_throttle_is_active(self):
+        from unittest import mock
+        from rest_framework.throttling import SimpleRateThrottle
+        with mock.patch.dict(SimpleRateThrottle.THROTTLE_RATES, {'firstaid': '2/hour'}):
+            self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).status_code, 200)
+            self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).status_code, 200)
+            self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).status_code, 429)
+
     def test_only_get_is_allowed(self):
         for method in ('post', 'put', 'patch', 'delete'):
             r = getattr(self.client, method)(f'{self.LIST}?lang=fr', {}, format='json')

@@ -407,3 +407,79 @@ def emergency_alert_pending(request):
     serializer = EmergencyAlertSerializer(paginated_alerts, many=True)
 
     return paginator.get_paginated_response(serializer.data)
+
+
+# ========== LIEUX D'URGENCE AUTOUR DE MOI (public) ==========
+
+from rest_framework.decorators import throttle_classes
+from rest_framework.permissions import AllowAny
+
+from core.throttling import ScopedAnonThrottle
+from .places import RADIUS_DEFAULT, RADIUS_MAX, get_places
+
+
+class EmergencyPlacesThrottle(ScopedAnonThrottle):
+    scope = 'emergency_places'   # taux dans REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
+
+
+def _places_error(code, message, details=None):
+    return Response({'success': False, 'error': {'code': code, 'message': message, 'details': details or {}}},
+                    status=status.HTTP_400_BAD_REQUEST)
+
+
+def _parse_float(value):
+    try:
+        f = float(value)
+    except (TypeError, ValueError):
+        return None
+    return f if f == f and f not in (float('inf'), float('-inf')) else None
+
+
+@api_view(['GET'])
+@permission_classes([AllowAny])
+@throttle_classes([EmergencyPlacesThrottle])
+def emergency_places(request):
+    """
+    GET /api/v1/emergency/places/?lat=&lon=&radius=&lang=
+    Hôpitaux, cliniques, pharmacies et centres de santé autour d'un point :
+    OpenStreetMap (via Overpass, côté serveur, en cache 6 h) fusionné avec le
+    référentiel Hospital. Public : en urgence, aucun compte requis.
+    """
+    q = request.query_params
+    if 'lat' not in q or 'lon' not in q:
+        return _places_error('coordinates_required',
+                             'Les paramètres « lat » et « lon » sont obligatoires. / '
+                             "The 'lat' and 'lon' parameters are required.")
+    lat, lon = _parse_float(q.get('lat')), _parse_float(q.get('lon'))
+    if lat is None or lon is None or not -90 <= lat <= 90 or not -180 <= lon <= 180:
+        return _places_error('coordinates_invalid',
+                             '« lat » (-90..90) et « lon » (-180..180) doivent être des nombres. / '
+                             "'lat' (-90..90) and 'lon' (-180..180) must be numbers.")
+    radius = RADIUS_DEFAULT
+    if q.get('radius') not in (None, ''):
+        try:
+            radius = int(q['radius'])
+        except ValueError:
+            radius = -1
+        if not 1 <= radius <= RADIUS_MAX:
+            return _places_error('radius_invalid',
+                                 f'« radius » en mètres, entre 1 et {RADIUS_MAX}. / '
+                                 f"'radius' in metres, between 1 and {RADIUS_MAX}.",
+                                 {'max': RADIUS_MAX, 'default': RADIUS_DEFAULT})
+    lang = q.get('lang', 'fr')
+    if lang not in ('fr', 'en'):
+        return _places_error('lang_invalid', "« lang » vaut « fr » ou « en ». / 'lang' must be 'fr' or 'en'.")
+
+    result = get_places(lat, lon, radius, lang)
+    response = Response({
+        'success': True,
+        'data': {
+            'center': {'lat': lat, 'lon': lon},
+            'radius': radius,
+            'generated_at': result.generated_at,
+            'source': result.source,
+            'places': result.places,
+        },
+    })
+    response['Cache-Control'] = 'no-store'
+    return response

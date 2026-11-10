@@ -13,6 +13,9 @@ urlpatterns = [
     path('secourist/profile/detail/', views.secourist_profile_detail, name='secourist_profile_detail'),
     path('secourists/', views.secourist_list, name='secourist_list'),
 
+    # Lieux d'urgence autour de moi (public, OSM + référentiel)
+    path('places/', views.emergency_places, name='emergency_places'),
+
     # Hospitals
     path('hospitals/', views.hospital_list, name='hospital_list'),
     path('hospitals/<uuid:hospital_id>/', views.hospital_detail, name='hospital_detail'),
