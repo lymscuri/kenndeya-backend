@@ -126,10 +126,22 @@ def clarify_system_prompt(lang: str, candidates: list[tuple[str, str, str]], tur
     )
 
 
+ANSWER_RULE = {
+    'fr': ("Une question fermée est en cours : un texte qui commence par « oui » ou « non » y répond, "
+           "choisis answer:yes ou answer:no d'après ce mot, même si la suite parle d'autre chose, sauf si "
+           "elle décrit clairement un signe d'alerte de la liste. "),
+    'en': ("A closed question is in progress: a text starting with \"yes\" or \"no\" answers it, choose "
+           "answer:yes or answer:no from that word even if the rest talks about something else, unless it "
+           "clearly describes a warning sign from the list. "),
+}
+
+
 def intent_system_prompt(lang: str, options: dict[str, str]) -> str:
     sep = ' : ' if lang == 'fr' else ': '
     lines = '\n'.join(f'- {key}{sep}{label}' for key, label in options.items())
     keys = ', '.join(options)
+    has_answers = any(k.startswith('answer:') for k in options)
+    answer_rule = ANSWER_RULE[lang] if has_answers else ''
     if lang == 'fr':
         return (
             "Tu es un classifieur. Tu ne donnes JAMAIS de conseil, de consigne ni d'instruction "
@@ -137,6 +149,7 @@ def intent_system_prompt(lang: str, options: dict[str, str]) -> str:
             "L'utilisateur suit un protocole de premiers secours et vient d'écrire un texte libre. "
             "Choisis l'intention qui correspond à ce texte, parmi cette liste fermée :\n"
             f"{lines}\n\n"
+            f"{answer_rule}"
             "Règles : « answer:… » seulement si le texte répond à la question en cours ; "
             "« red_flag:… » si le texte décrit ce signe d'alerte chez la personne ; « switch:… » si "
             "le texte décrit une situation qui relève d'un autre protocole de la liste ; off_topic pour "
@@ -153,6 +166,7 @@ def intent_system_prompt(lang: str, options: dict[str, str]) -> str:
         "The user is following a first-aid protocol and has just typed free text. Pick the intent "
         "matching that text, from this closed list:\n"
         f"{lines}\n\n"
+        f"{answer_rule}"
         "Rules: \"answer:…\" only if the text answers the current question; \"red_flag:…\" if the text "
         "describes that warning sign in the person; \"switch:…\" if the text describes a situation "
         "covered by another protocol of the list; off_topic for a question or remark unrelated to "

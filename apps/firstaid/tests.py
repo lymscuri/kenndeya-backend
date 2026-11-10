@@ -1299,10 +1299,12 @@ class IntentApiTests(_ClassifyMixin, SimpleTestCase):
                        '- off_topic : ', '- unclear : ', 'Tu ne rédiges aucune phrase'):
             self.assertIn(needle, system)
         self.assertNotIn('switch:cardiac_arrest', system)          # jamais le protocole en cours
-        # en phase block, aucune option answer:
+        self.assertIn('un texte qui commence par « oui » ou « non » y répond', system)   # règle oui/non en phase question
+        # en phase block, aucune option answer: ni règle oui/non
         self.fake.calls.clear()
         self.intent('et si elle vomit ?', outputs=['{"intent": "off_topic", "confidence": 0.8}'])
         self.assertNotIn('- answer:', self.fake.calls[0][0])
+        self.assertNotIn('« oui » ou « non »', self.fake.calls[0][0])
 
     @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
     def test_red_flag_recognised_with_target_and_switch(self):
