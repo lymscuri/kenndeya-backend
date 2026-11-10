@@ -32,6 +32,7 @@ from rest_framework.response import Response
 from core.throttling import ScopedAnonThrottle
 
 from .classify import ClassifierUnavailable, answer_text, classify_text
+from .dialogue import CLARIFY_MAX_TURNS, PHASES, clarify_text, intent_text
 from .lang import detect_lang
 from .loader import registry
 from .schema import LANGS
@@ -76,6 +77,15 @@ ERR_LANG_UNDET = ('lang_undetermined', "Langue indéterminable : précisez « la
                                        "Language could not be determined: provide 'lang' ('fr' or 'en').")
 ERR_OPTIONS = ('options_invalid', "« options » : objet de 2 à 8 clés (a-z, 0-9, _) vers des libellés non vides. / "
                                   "'options': object of 2 to 8 keys (a-z, 0-9, _) to non-empty labels.")
+ERR_TURN = ('turn_invalid', f'« turn » : entier de 1 à {CLARIFY_MAX_TURNS}. / '
+                            f"'turn' must be an integer from 1 to {CLARIFY_MAX_TURNS}.")
+ERR_PROTOCOL = ('protocol_unknown', "« protocol_id » ne désigne aucun protocole publiable. / "
+                                    "'protocol_id' is not a publishable protocol.")
+ERR_PHASE = ('phase_invalid', "« phase » vaut « question » ou « block ». / 'phase' must be 'question' or 'block'.")
+ERR_QOPTIONS = ('question_options_invalid', "« question_options » : objet de 2 à 8 clés vers des libellés, "
+                                             "obligatoire en phase « question », null sinon. / "
+                                             "'question_options': object of 2 to 8 keys to labels, required in "
+                                             "phase 'question', null otherwise.")
 ERR_UNAVAILABLE = ('classifier_unavailable', 'Classification indisponible, choisissez le scénario dans la liste. / '
                                              'Classification unavailable, pick the scenario from the list.')
 
@@ -270,3 +280,65 @@ def answer(request):
         logger.warning('firstaid answer indisponible : %s', exc)
         return _no_store(_error(*ERR_UNAVAILABLE, http=status.HTTP_503_SERVICE_UNAVAILABLE))
     return _no_store(Response({'success': True, 'data': {'lang': lang, 'answer': key, 'confidence': confidence}}))
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([FirstaidThrottle])
+def clarify(request):
+    """
+    POST /api/v1/firstaid/clarify/ {text, lang?, turn} — le modèle pose UNE question de
+    clarification, validée par les garde-fous du serveur (dialogue.validate_question),
+    sinon la question de secours fixe ; null au tour 3 ou si aucun scénario ne peut correspondre.
+    """
+    text, lang, err = _parse_text_and_lang(request)
+    if err is not None:
+        return _no_store(err)
+    turn = request.data.get('turn')
+    if isinstance(turn, bool) or not isinstance(turn, int) or not 1 <= turn <= CLARIFY_MAX_TURNS:
+        return _no_store(_error(*ERR_TURN))
+    try:
+        result = clarify_text(text, lang, turn)
+    except ClassifierUnavailable as exc:
+        logger.warning('firstaid clarify indisponible : %s', exc)
+        return _no_store(_error(*ERR_UNAVAILABLE, http=status.HTTP_503_SERVICE_UNAVAILABLE))
+    data = {'lang': lang, 'turn': turn, 'question': result.question, 'source': result.source}
+    return _no_store(Response({'success': True, 'data': data}))
+
+
+@api_view(['POST'])
+@permission_classes([AllowAny])
+@throttle_classes([FirstaidThrottle])
+def intent(request):
+    """
+    POST /api/v1/firstaid/intent/ {text, lang?, protocol_id, phase, question_options|null} —
+    une intention parmi des options fixes construites par le serveur (answer:<clé>, red_flag:<i>,
+    switch:<id>, off_topic, unclear). Aucun texte du modèle ne sort.
+    """
+    text, lang, err = _parse_text_and_lang(request)
+    if err is not None:
+        return _no_store(err)
+    body = request.data
+    protocol = registry.publishable_protocols().get(body.get('protocol_id')) \
+        if isinstance(body.get('protocol_id'), str) else None
+    if protocol is None:
+        return _no_store(_error(*ERR_PROTOCOL))
+    phase = body.get('phase')
+    if phase not in PHASES:
+        return _no_store(_error(*ERR_PHASE))
+    raw_options = body.get('question_options')
+    question_options = None
+    if phase == 'question':
+        question_options = _parse_options({'options': raw_options})
+        if question_options is None:
+            return _no_store(_error(*ERR_QOPTIONS))
+    elif raw_options is not None:
+        return _no_store(_error(*ERR_QOPTIONS))
+    try:
+        result = intent_text(text, lang, protocol, phase, question_options)
+    except ClassifierUnavailable as exc:
+        logger.warning('firstaid intent indisponible : %s', exc)
+        return _no_store(_error(*ERR_UNAVAILABLE, http=status.HTTP_503_SERVICE_UNAVAILABLE))
+    data = {'lang': lang, 'protocol_id': protocol.id, 'phase': phase,
+            'intent': result.intent, 'confidence': result.confidence, 'target': result.target}
+    return _no_store(Response({'success': True, 'data': data}))

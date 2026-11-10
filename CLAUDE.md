@@ -375,7 +375,14 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
       (IFRC 2025 p.256-259 + choc p.388-389 ; FR 2020 p.200-203, 311-312) : pression directe, objet planté,
       garrot seulement si pression inefficace ET membre, surveillance du choc ; red flags → unconscious_breathing /
       cardiac_arrest ; pas de variantes d'âge ; 10 review_notes (garrot, timer, hémostatique…)
-- [x] `apps/firstaid/tests.py` → 78 tests (`manage.py test apps.firstaid`)
+- [x] `apps/firstaid/dialogue.py` + `POST clarify/` et `POST intent/` → le modèle MÈNE le dialogue sans jamais donner
+      une consigne. clarify : UNE question courte pour distinguer les scénarios publiables, ou null ; seul texte du
+      modèle qui sorte, après garde-fous serveur (« ? », ≤ 25 mots, langue = lang ou indécidable, aucun verbe de geste
+      ni mot de consigne fr/en, aucun numéro d'urgence ni posologie) sinon question de secours FIXE (celle de l'app)
+      avec `source: fallback` ; tour ≥ 3 ou aucun protocole publiable → null sans appel ; rejets journalisés.
+      intent : options FIXES construites par le serveur (answer:<clé>, red_flag:<i>, switch:<id> publiable, off_topic,
+      unclear), analyse stricte, raccourci oui/non sans modèle, seuil FIRSTAID_CLASSIFY_MIN.
+- [x] `apps/firstaid/tests.py` → 92 tests (`manage.py test apps.firstaid`)
 - [x] `apps/firstaid/review.py` + `management/commands/firstaid_review.py` → dossier de relecture PDF
       (`python manage.py firstaid_review --out <dossier> [--lang fr|en|both]`, un PDF par protocole et par langue)
 - [x] champ YAML optionnel `review_notes: [{fr, en}]` → points à trancher par le médecin, rendus en fin de PDF
@@ -400,6 +407,10 @@ GET /api/v1/firstaid/protocols/:id/?lang=fr|en    protocole complet dans une lan
 GET /api/v1/firstaid/meta/?lang=fr|en             emergency_number, languages, protocol_count
 POST /api/v1/firstaid/classify/  {text, lang?}     → {lang, scenario|null, confidence, protocol{id,title,description,version,status}|null, emergency_number}
 POST /api/v1/firstaid/answer/    {text, lang?, options{key: libellé}}  → {lang, answer: key|null, confidence}
+POST /api/v1/firstaid/clarify/   {text, lang?, turn 1..3}  → {lang, turn, question|null, source: model|fallback|null}
+POST /api/v1/firstaid/intent/    {text, lang?, protocol_id, phase: question|block, question_options{clé: libellé}|null}
+                                                   → {lang, protocol_id, phase, intent, confidence,
+                                                      target: {kind: answer|red_flag|switch, key|index|id, label, switch_to?}|null}
                                                    (oui/non/yes/no triviaux convertis sans modèle ; seuil FIRSTAID_CLASSIFY_MIN)
 ```
 

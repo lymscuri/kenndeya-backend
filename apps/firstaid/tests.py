@@ -1161,3 +1161,216 @@ class AnswerApiTests(_ClassifyMixin, SimpleTestCase):
         r = self.answer('elle bouge un peu', outputs=[ClassifierUnavailable('délai')])
         self.assertEqual(r.status_code, 503)
         self.assertEqual(r.json()['error']['code'], 'classifier_unavailable')
+
+
+# ==============================================================================
+# Dialogue : POST clarify/ et intent/ — client Groq mocké, aucun réseau
+# ==============================================================================
+
+class ClarifyApiTests(_ClassifyMixin, SimpleTestCase):
+    CLARIFY = '/api/v1/firstaid/clarify/'
+
+    def clarify(self, text, turn=1, lang='fr', outputs=()):
+        self.fake.outputs = list(outputs)
+        return self.post(self.CLARIFY, {'text': text, 'lang': lang, 'turn': turn})
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_valid_question_comes_from_model(self):
+        from .dialogue import CLARIFY_MAX_TURNS, QUESTION_MAX_WORDS
+        r = self.clarify('je suis blessé', outputs=['{"question": "La personne est-elle consciente ?"}'])
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Cache-Control'], 'no-store')
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'turn': 1, 'question': 'La personne est-elle consciente ?',
+                                            'source': 'model'})
+        system, user = self.fake.calls[0]
+        self.assertEqual(user, 'je suis blessé')
+        for needle in ('- cardiac_arrest : ', '- severe_bleeding : ', '- unconscious_breathing : ',
+                       f'tour 1 sur {CLARIFY_MAX_TURNS}', f'moins de {QUESTION_MAX_WORDS} mots',
+                       '{"question": null}', "n'écris aucun verbe à l'impératif"):
+            self.assertIn(needle, system)
+        # en anglais, prompt anglais
+        self.fake.calls.clear()
+        r = self.clarify('my friend fell', lang='en', turn=2, outputs=['{"question": "Is the person breathing normally?"}'])
+        self.assertEqual(r.json()['data'], {'lang': 'en', 'turn': 2, 'question': 'Is the person breathing normally?',
+                                            'source': 'model'})
+        self.assertIn('turn 2 of 3', self.fake.calls[0][0])
+        self.assertIn('- cardiac_arrest: ', self.fake.calls[0][0])
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_rejected_questions_fall_back_and_are_logged(self):
+        from .dialogue import FALLBACK_QUESTION
+        cases = [
+            ('{"question": "Appuyez sur la plaie, elle saigne ?"}', 'mot de consigne'),          # impératif de geste
+            ('{"question": "Il faut la mettre sur le côté ?"}', 'mot de consigne'),              # mot de consigne
+            ('{"question": "La personne est-elle consciente"}', 'ne se termine pas par « ? »'),  # sans « ? »
+            ('{"question": "' + ' '.join(['elle'] * 26) + ' ?"}', '26 mots, maximum 25'),         # trop longue
+            ('{"question": "Is the person breathing normally and is there any blood?"}', 'langue détectée en'),  # mauvaise langue
+            ('{"question": "Avez-vous appelé le 442 ?"}', "numéro d'urgence"),
+            ('{"question": "A-t-elle pris 500 mg de paracétamol ?"}', 'posologie'),
+            ('{"question": ""}', 'question vide'),
+            ('{"question": 12}', 'question vide ou non textuelle'),
+        ]
+        for out, reason in cases:
+            with self.assertLogs('apps.firstaid.dialogue', level='WARNING') as logs:
+                r = self.clarify('je suis blessé', outputs=[out])
+            self.assertEqual(r.json()['data']['question'], FALLBACK_QUESTION['fr'], out)
+            self.assertEqual(r.json()['data']['source'], 'fallback', out)
+            self.assertIn(reason, logs.output[0], out)
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_invalid_json_falls_back_and_trap_never_returned(self):
+        from .dialogue import FALLBACK_QUESTION
+        for out in (f'{TRAP} ?', f'{{"question": "Appuyez fort, {TRAP} ?"}}', f'{{"q": "{TRAP} ?"}}',
+                    f'["{TRAP} ?"]'):
+            with self.assertLogs('apps.firstaid.dialogue', level='WARNING'):
+                r = self.clarify('je suis blessé', outputs=[out])
+            self.assertNotIn(TRAP, r.content.decode(), out)
+            self.assertEqual(r.json()['data'], {'lang': 'fr', 'turn': 1, 'question': FALLBACK_QUESTION['fr'],
+                                                'source': 'fallback'})
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_model_null_means_no_question(self):
+        r = self.clarify('bonjour', outputs=['{"question": null}'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'turn': 1, 'question': None, 'source': 'model'})
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_turn_three_asks_nothing_without_model_call(self):
+        r = self.clarify('je suis blessé', turn=3, outputs=['{"question": "Jamais demandée ?"}'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'turn': 3, 'question': None, 'source': None})
+        self.assertEqual(self.fake.calls, [])
+        for bad in (0, 4, 'deux', True, None):
+            r = self.post(self.CLARIFY, {'text': 'x', 'lang': 'fr', 'turn': bad})
+            self.assertEqual((r.status_code, r.json()['error']['code']), (400, 'turn_invalid'), bad)
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
+    def test_no_publishable_protocol_means_null_without_model_call(self):
+        r = self.clarify('je suis blessé', outputs=['{"question": "Jamais demandée ?"}'])
+        self.assertEqual(r.json()['data']['question'], None)
+        self.assertEqual(r.json()['data']['source'], None)
+        self.assertEqual(self.fake.calls, [])
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_unavailable_and_body_validation(self):
+        from .classify import ClassifierUnavailable
+        r = self.clarify('je suis blessé', outputs=[ClassifierUnavailable('HTTP 500')])
+        self.assertEqual((r.status_code, r.json()['error']['code']), (503, 'classifier_unavailable'))
+        r = self.post(self.CLARIFY, {'text': 'x' * 1001, 'lang': 'fr', 'turn': 1})
+        self.assertEqual(r.json()['error']['code'], 'text_too_long')
+        r = self.post(self.CLARIFY, {'text': 'ok', 'turn': 1})
+        self.assertEqual(r.json()['error']['code'], 'lang_undetermined')
+
+
+class IntentApiTests(_ClassifyMixin, SimpleTestCase):
+    INTENT = '/api/v1/firstaid/intent/'
+    YES_NO = {'yes': 'Oui', 'no': 'Non, elle ne respire pas ou respire anormalement'}
+
+    def intent(self, text, protocol_id='cardiac_arrest', phase='block', options=None, lang='fr', outputs=()):
+        self.fake.outputs = list(outputs)
+        return self.post(self.INTENT, {'text': text, 'lang': lang, 'protocol_id': protocol_id,
+                                       'phase': phase, 'question_options': options})
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_yes_no_shortcut_without_model(self):
+        r = self.intent('non', phase='question', options=self.YES_NO)
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r['Cache-Control'], 'no-store')
+        self.assertEqual(r.json()['data'], {
+            'lang': 'fr', 'protocol_id': 'cardiac_arrest', 'phase': 'question', 'intent': 'answer:no',
+            'confidence': 1.0,
+            'target': {'kind': 'answer', 'key': 'no', 'label': 'Non, elle ne respire pas ou respire anormalement'},
+        })
+        self.assertEqual(self.fake.calls, [])
+        r = self.intent('Oui !', phase='question', options=self.YES_NO)
+        self.assertEqual(r.json()['data']['intent'], 'answer:yes')
+        self.assertEqual(self.fake.calls, [])
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_answer_via_model_and_option_list(self):
+        r = self.intent('non elle bouge pas', phase='question', options=self.YES_NO,
+                        outputs=['{"intent": "answer:no", "confidence": 0.9}'])
+        data = r.json()['data']
+        self.assertEqual((data['intent'], data['confidence'], data['target']['key']), ('answer:no', 0.9, 'no'))
+        system, user = self.fake.calls[0]
+        self.assertEqual(user, 'non elle bouge pas')
+        for needle in ('- answer:yes : Oui', '- answer:no : Non, elle ne respire pas',
+                       '- red_flag:0 : La personne se remet à respirer normalement ou montre des signes de vie.',
+                       '- switch:severe_bleeding : Saignement abondant (hémorragie externe)',
+                       '- switch:unconscious_breathing : Personne inconsciente qui respire',
+                       '- off_topic : ', '- unclear : ', 'Tu ne rédiges aucune phrase'):
+            self.assertIn(needle, system)
+        self.assertNotIn('switch:cardiac_arrest', system)          # jamais le protocole en cours
+        # en phase block, aucune option answer:
+        self.fake.calls.clear()
+        self.intent('et si elle vomit ?', outputs=['{"intent": "off_topic", "confidence": 0.8}'])
+        self.assertNotIn('- answer:', self.fake.calls[0][0])
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_red_flag_recognised_with_target_and_switch(self):
+        r = self.intent('elle recommence à respirer', outputs=['{"intent": "red_flag:0", "confidence": 0.95}'])
+        self.assertEqual(r.json()['data']['intent'], 'red_flag:0')
+        self.assertEqual(r.json()['data']['target'], {
+            'kind': 'red_flag', 'index': 0,
+            'label': 'La personne se remet à respirer normalement ou montre des signes de vie.',
+            'switch_to': 'unconscious_breathing',
+        })
+        # red flag sans bascule : pas de switch_to
+        r = self.intent('she is pale and sweating', protocol_id='severe_bleeding', lang='en',
+                        outputs=['{"intent": "red_flag:2", "confidence": 0.9}'])
+        target = r.json()['data']['target']
+        self.assertEqual((target['kind'], target['index']), ('red_flag', 2))
+        self.assertNotIn('switch_to', target)
+        self.assertEqual(target['label'], 'Pale or ashen skin, bluish lips, cool and clammy skin, sweating.')
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_switch_to_other_protocol(self):
+        r = self.intent('en fait elle saigne beaucoup', outputs=['{"intent": "switch:severe_bleeding", "confidence": 0.9}'])
+        self.assertEqual(r.json()['data']['target'],
+                         {'kind': 'switch', 'id': 'severe_bleeding', 'label': 'Saignement abondant (hémorragie externe)'})
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_off_topic_invented_and_low_confidence(self):
+        r = self.intent('et si elle vomit ?', outputs=['{"intent": "off_topic", "confidence": 0.8}'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'protocol_id': 'cardiac_arrest', 'phase': 'block',
+                                            'intent': 'off_topic', 'confidence': 0.8, 'target': None})
+        with self.assertLogs('apps.firstaid.classify', level='WARNING'):
+            r = self.intent('x', outputs=[f'{{"intent": "switch:{TRAP}", "confidence": 0.99}}'])
+        self.assertEqual((r.json()['data']['intent'], r.json()['data']['confidence']), ('unclear', 0.0))
+        self.assertNotIn(TRAP, r.content.decode())
+        r = self.intent('x', outputs=['{"intent": "red_flag:0", "confidence": 0.3}'])     # sous le seuil
+        self.assertEqual((r.json()['data']['intent'], r.json()['data']['target']), ('unclear', None))
+        with self.assertLogs('apps.firstaid.classify', level='WARNING'):
+            r = self.intent('x', outputs=[f'Je pense que {TRAP}'])
+        self.assertEqual(r.json()['data']['intent'], 'unclear')
+        self.assertNotIn(TRAP, r.content.decode())
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
+    def test_options_built_without_drafts(self):
+        with _TmpProtocols() as d:
+            path = d / 'unconscious_breathing.yaml'
+            _replace_once(path, 'status: draft_unvalidated', 'status: validated')
+            _replace_once(path, 'validated_by: []\n', SIGNATURE)
+            from .loader import registry
+            registry.load(d)                     # seul unconscious_breathing est publiable
+            r = self.intent('x', protocol_id='cardiac_arrest')          # brouillon → refusé
+            self.assertEqual((r.status_code, r.json()['error']['code']), (400, 'protocol_unknown'))
+            self.assertEqual(self.fake.calls, [])
+            r = self.intent('x', protocol_id='unconscious_breathing',
+                            outputs=['{"intent": "off_topic", "confidence": 0.9}'])
+            self.assertEqual(r.status_code, 200)
+            system, _ = self.fake.calls[0]
+            self.assertNotIn('- switch:', system)                      # aucun brouillon proposé en bascule
+            self.assertIn('red_flag:0', system)
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+    def test_body_validation(self):
+        r = self.intent('x', phase='block', options=self.YES_NO)
+        self.assertEqual(r.json()['error']['code'], 'question_options_invalid')
+        r = self.intent('x', phase='question', options=None)
+        self.assertEqual(r.json()['error']['code'], 'question_options_invalid')
+        r = self.intent('x', phase='step')
+        self.assertEqual(r.json()['error']['code'], 'phase_invalid')
+        r = self.intent('x', protocol_id='nope')
+        self.assertEqual(r.json()['error']['code'], 'protocol_unknown')
+        from .classify import ClassifierUnavailable
+        r = self.intent('x', outputs=[ClassifierUnavailable('réseau')])
+        self.assertEqual(r.status_code, 503)
