@@ -280,6 +280,14 @@ EMERGENCY_NUMBER = env('EMERGENCY_NUMBER', default='442')
 # protocoles non validés par un médecin (développement/recette uniquement).
 # production.py force cette valeur à False en dur, sans lire l'environnement.
 FIRSTAID_ALLOW_DRAFTS = env.bool('FIRSTAID_ALLOW_DRAFTS', default=False)
+
+# Classification de scénario (POST /api/v1/firstaid/classify/ et /answer/).
+# Le modèle de langage ne fait que RECONNAÎTRE un scénario parmi les protocoles
+# publiables ; aucun texte qu'il produit n'est jamais renvoyé au client.
+GROQ_API_KEY = env('GROQ_API_KEY', default='')                       # vide → 503 classifier_unavailable
+GROQ_MODEL_FAST = env('GROQ_MODEL_FAST', default='openai/gpt-oss-20b')  # même défaut que l'app mobile
+GROQ_TIMEOUT = env.float('GROQ_TIMEOUT', default=8.0)                 # secondes
+FIRSTAID_CLASSIFY_MIN = env.float('FIRSTAID_CLASSIFY_MIN', default=0.6)  # confiance minimale
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {

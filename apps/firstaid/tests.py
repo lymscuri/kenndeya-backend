@@ -705,3 +705,346 @@ class PublicApiTests(SimpleTestCase):
         for method in ('post', 'put', 'patch', 'delete'):
             r = getattr(self.client, method)(f'{self.LIST}?lang=fr', {}, format='json')
             self.assertEqual(r.status_code, 405, method)
+
+
+# ==============================================================================
+# Détection de langue (sans modèle)
+# ==============================================================================
+
+class LangDetectTests(SimpleTestCase):
+
+    def test_french(self):
+        from .lang import detect_lang
+        self.assertEqual(detect_lang('mon frère est tombé, il ne répond pas mais il respire'), 'fr')
+        self.assertEqual(detect_lang("j'ai mal à la tête depuis ce matin"), 'fr')
+        self.assertEqual(detect_lang('Oui, elle réagit'), 'fr')
+
+    def test_english(self):
+        from .lang import detect_lang
+        self.assertEqual(detect_lang('my father collapsed, he is not breathing'), 'en')
+        self.assertEqual(detect_lang("he isn't moving and there is blood"), 'en')
+        self.assertEqual(detect_lang('No, no reaction'), 'en')
+
+    def test_undecidable(self):
+        from .lang import detect_lang
+        for text in ('', '   ', None, 'ok', '442', 'OK!!!', '...'):
+            self.assertIsNone(detect_lang(text), repr(text))
+
+    def test_mixed_tie_is_undecidable(self):
+        from .lang import detect_lang
+        # un indice français, un indice anglais : égalité → None, on ne devine pas
+        self.assertIsNone(detect_lang('il respire he breathes'))
+
+
+# ==============================================================================
+# Classification : POST classify/ et answer/ — client Groq mocké, aucun réseau
+# ==============================================================================
+
+TRAP = 'TRAP_PHRASE_DU_MODELE_7731'  # ne doit JAMAIS apparaître dans une réponse HTTP
+
+
+class _FakeClient:
+    """Remplace GroqClient : rejoue des sorties scriptées et enregistre les prompts envoyés."""
+
+    def __init__(self, outputs):
+        self.outputs = list(outputs)
+        self.calls = []  # [(system, user)]
+
+    def complete(self, system, user, **kw):
+        self.calls.append((system, user))
+        out = self.outputs.pop(0)
+        if isinstance(out, Exception):
+            raise out
+        return out
+
+
+class _ClassifyMixin:
+    CLASSIFY = '/api/v1/firstaid/classify/'
+    ANSWER = '/api/v1/firstaid/answer/'
+
+    def setUp(self):
+        from unittest import mock
+        from django.core.cache import cache
+        from rest_framework.test import APIClient
+        cache.clear()
+        self.client = APIClient()
+        from .loader import registry
+        registry.load(REAL)
+        self.fake = _FakeClient([])
+        patcher = mock.patch('apps.firstaid.classify.get_client', return_value=self.fake)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def tearDown(self):
+        from .loader import registry
+        registry.load(REAL)
+
+    def post(self, url, body):
+        return self.client.post(url, body, format='json')
+
+    def classify(self, text, lang=None, outputs=(), **extra):
+        self.fake.outputs = list(outputs)
+        body = {'text': text, **extra}
+        if lang is not None:
+            body['lang'] = lang
+        return self.post(self.CLASSIFY, body)
+
+
+@override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+class ClassifyApiTests(_ClassifyMixin, SimpleTestCase):
+
+    def test_scenario_recognized_and_lang_detected(self):
+        r = self.classify('mon frère est tombé, il ne répond pas mais il respire',
+                          outputs=['{"scenario": "unconscious_breathing", "confidence": 0.92}'])
+        self.assertEqual(r.status_code, 200, r.content)
+        self.assertEqual(r['Cache-Control'], 'no-store')
+        data = r.json()['data']
+        self.assertEqual(data['lang'], 'fr')
+        self.assertEqual(data['scenario'], 'unconscious_breathing')
+        self.assertEqual(data['confidence'], 0.92)
+        self.assertEqual(data['emergency_number'], str(settings.EMERGENCY_NUMBER))
+        self.assertEqual(set(data['protocol']), {'id', 'title', 'description', 'version', 'status'})
+        self.assertEqual(data['protocol']['id'], 'unconscious_breathing')
+        self.assertEqual(data['protocol']['title'], 'Personne inconsciente qui respire')
+        self.assertEqual(data['protocol']['status'], 'draft_unvalidated')
+        # un seul appel, prompt système en français, texte utilisateur dans le message user
+        self.assertEqual(len(self.fake.calls), 1)
+        system, user = self.fake.calls[0]
+        self.assertTrue(system.startswith('Tu es un classifieur.'))
+        self.assertIn('- unconscious_breathing : Personne inconsciente qui respire', system)
+        self.assertIn('- cardiac_arrest : Personne inconsciente qui ne respire pas normalement', system)
+        self.assertIn('- none', system)
+        self.assertNotIn('Unresponsive', system)          # rien en anglais dans le prompt fr
+        self.assertEqual(user, 'mon frère est tombé, il ne répond pas mais il respire')
+        self.assertNotIn('442', system)                    # pas de numéro d'urgence dans le prompt
+
+    def test_explicit_english_prompt(self):
+        r = self.classify('my father collapsed, he is not breathing', lang='en',
+                          outputs=['{"scenario": "cardiac_arrest", "confidence": 0.95}'])
+        self.assertEqual(r.status_code, 200)
+        data = r.json()['data']
+        self.assertEqual(data['lang'], 'en')
+        self.assertEqual(data['scenario'], 'cardiac_arrest')
+        self.assertEqual(data['protocol']['title'], 'Unresponsive person who is not breathing normally')
+        system, _ = self.fake.calls[0]
+        self.assertTrue(system.startswith('You are a classifier.'))
+        self.assertIn('- cardiac_arrest: Unresponsive person who is not breathing normally', system)
+        self.assertNotIn('Personne inconsciente', system)  # rien en français dans le prompt en
+
+    def test_none_scenario(self):
+        r = self.classify("j'ai mal à la tête depuis ce matin",
+                          outputs=['{"scenario": "none", "confidence": 0.9}'])
+        data = r.json()['data']
+        self.assertIsNone(data['scenario'])
+        self.assertIsNone(data['protocol'])
+        self.assertEqual(data['confidence'], 0.9)
+
+    def test_invalid_json_is_none_zero(self):
+        for raw in ('pas du json', '```json\n{"scenario": "cardiac_arrest", "confidence": 0.9}\n```',
+                    '[1, 2]', '{"confidence": 0.9}', '{"scenario": "cardiac_arrest"}',
+                    '{"scenario": "cardiac_arrest", "confidence": "0.9"}',
+                    '{"scenario": "cardiac_arrest", "confidence": 1.2}',
+                    '{"scenario": "cardiac_arrest", "confidence": -0.1}',
+                    '{"scenario": "cardiac_arrest", "confidence": true}'):
+            with self.assertLogs('apps.firstaid.classify', level='WARNING'):
+                r = self.classify('il ne respire plus', outputs=[raw])
+            data = r.json()['data']
+            self.assertIsNone(data['scenario'], raw)
+            self.assertEqual(data['confidence'], 0.0, raw)
+            self.assertIsNone(data['protocol'], raw)
+
+    def test_invented_scenario_is_none_zero(self):
+        with self.assertLogs('apps.firstaid.classify', level='WARNING'):
+            r = self.classify('il ne respire plus', outputs=['{"scenario": "snake_bite", "confidence": 0.99}'])
+        data = r.json()['data']
+        self.assertIsNone(data['scenario'])
+        self.assertEqual(data['confidence'], 0.0)
+
+    def test_below_threshold_is_null_with_confidence(self):
+        self.assertEqual(settings.FIRSTAID_CLASSIFY_MIN, 0.6)
+        r = self.classify('il est tombé', outputs=['{"scenario": "cardiac_arrest", "confidence": 0.4}'])
+        data = r.json()['data']
+        self.assertIsNone(data['scenario'])
+        self.assertIsNone(data['protocol'])
+        self.assertEqual(data['confidence'], 0.4)
+        r = self.classify('il est tombé', outputs=['{"scenario": "cardiac_arrest", "confidence": 0.6}'])
+        self.assertEqual(r.json()['data']['scenario'], 'cardiac_arrest')  # seuil inclus
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
+    def test_unpublishable_draft_never_offered_to_model(self):
+        with _TmpProtocols() as d:
+            path = d / MAIN
+            _replace_once(path, 'status: draft_unvalidated', 'status: validated')
+            _replace_once(path, 'validated_by: []\n', SIGNATURE)
+            from .loader import registry
+            registry.load(d)                     # unconscious_breathing publiable, cardiac_arrest brouillon
+            r = self.classify('il ne respire plus', outputs=['{"scenario": "cardiac_arrest", "confidence": 0.99}'])
+            system, _ = self.fake.calls[0]
+            self.assertIn('unconscious_breathing', system)
+            self.assertNotIn('cardiac_arrest', system)
+            # même si le modèle le nomme quand même, il est hors liste → null / 0
+            data = r.json()['data']
+            self.assertIsNone(data['scenario'])
+            self.assertEqual(data['confidence'], 0.0)
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
+    def test_no_publishable_means_no_model_call(self):
+        r = self.classify('il ne respire plus', outputs=['{"scenario": "cardiac_arrest", "confidence": 0.99}'])
+        self.assertEqual(r.status_code, 200)
+        data = r.json()['data']
+        self.assertIsNone(data['scenario'])
+        self.assertEqual(data['confidence'], 0.0)
+        self.assertIsNone(data['protocol'])
+        self.assertEqual(self.fake.calls, [])
+
+    def test_lang_undetermined_and_invalid(self):
+        r = self.classify('ok')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['error']['code'], 'lang_undetermined')
+        self.assertIn('/', r.json()['error']['message'])       # bilingue
+        r = self.classify('442', lang=None)
+        self.assertEqual(r.json()['error']['code'], 'lang_undetermined')
+        r = self.classify('ok', lang='de')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['error']['code'], 'lang_invalid')
+        r = self.post(self.CLASSIFY, {'text': 'ok', 'lang': None})   # null explicite → détection
+        self.assertEqual(r.json()['error']['code'], 'lang_undetermined')
+        self.assertEqual(self.fake.calls, [])
+
+    def test_text_validation(self):
+        for body in ({}, {'text': ''}, {'text': '   '}, {'text': 42}, {'text': None}):
+            r = self.post(self.CLASSIFY, body)
+            self.assertEqual(r.status_code, 400, body)
+            self.assertEqual(r.json()['error']['code'], 'text_required', body)
+        r = self.classify('a' * 1001, lang='fr')
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['error']['code'], 'text_too_long')
+        self.fake.outputs = ['{"scenario": "none", "confidence": 1}']
+        r = self.classify('a' * 1000, lang='fr', outputs=['{"scenario": "none", "confidence": 1}'])
+        self.assertEqual(r.status_code, 200)
+        r = self.post(self.CLASSIFY, [1, 2])
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.json()['error']['code'], 'body_invalid')
+
+    def test_classifier_unavailable_is_503(self):
+        from .classify import ClassifierUnavailable
+        r = self.classify('il ne respire plus', outputs=[ClassifierUnavailable('HTTP 500')])
+        self.assertEqual(r.status_code, 503)
+        self.assertEqual(r.json()['error']['code'], 'classifier_unavailable')
+        self.assertNotIn('HTTP 500', r.content.decode())
+
+    @override_settings(GROQ_API_KEY='')
+    def test_missing_key_is_503_without_mock(self):
+        from unittest import mock
+        from .classify import GroqClient
+        with mock.patch('apps.firstaid.classify.get_client', return_value=GroqClient()):
+            with mock.patch('apps.firstaid.classify.requests.post') as post:
+                r = self.classify('il ne respire plus')
+                self.assertEqual(r.status_code, 503)
+                post.assert_not_called()
+
+    def test_model_text_never_leaks(self):
+        traps = [
+            f'{TRAP} prenez de l\'aspirine',
+            f'{{"scenario": "{TRAP}", "confidence": 0.99}}',
+            f'{{"scenario": "cardiac_arrest", "confidence": 0.99, "advice": "{TRAP}"}}',
+            f'{{"scenario": "none", "confidence": 0.5, "message": "{TRAP}"}}',
+        ]
+        for raw in traps:
+            r = self.classify('il ne respire plus', outputs=[raw])
+            self.assertEqual(r.status_code, 200, raw)
+            self.assertNotIn(TRAP, r.content.decode(), raw)
+        # texte du protocole : vient du YAML, pas du modèle
+        self.assertEqual(self.classify('x', lang='fr', outputs=[traps[2]]).json()['data']['protocol']['title'],
+                         'Personne inconsciente qui ne respire pas normalement')
+
+    def test_only_post_is_allowed(self):
+        for method in ('get', 'put', 'patch', 'delete'):
+            self.assertEqual(getattr(self.client, method)(self.CLASSIFY).status_code, 405, method)
+            self.assertEqual(getattr(self.client, method)(self.ANSWER).status_code, 405, method)
+
+
+@override_settings(FIRSTAID_ALLOW_DRAFTS=True)
+class AnswerApiTests(_ClassifyMixin, SimpleTestCase):
+
+    OPTIONS = {'yes': 'Oui, elle réagit', 'no': 'Non, aucune réaction'}
+
+    def answer(self, text, lang=None, outputs=(), options=None):
+        self.fake.outputs = list(outputs)
+        body = {'text': text, 'options': self.OPTIONS if options is None else options}
+        if lang is not None:
+            body['lang'] = lang
+        return self.post(self.ANSWER, body)
+
+    def test_trivial_yes_no_without_model(self):
+        for text, expected in (('Oui', 'yes'), ('oui !', 'yes'), ('yes', 'yes'), ('Non.', 'no'),
+                               ('no', 'no'), ('NON', 'no')):
+            r = self.answer(text, lang='fr')
+            self.assertEqual(r.status_code, 200, text)
+            self.assertEqual(r.json()['data']['answer'], expected, text)
+            self.assertEqual(r.json()['data']['confidence'], 1.0)
+            self.assertEqual(r['Cache-Control'], 'no-store')
+        self.assertEqual(self.fake.calls, [])
+
+    def test_trivial_shortcut_only_if_key_exists(self):
+        r = self.answer('oui', lang='fr', options={'moves': 'Elle bouge', 'still': 'Elle ne bouge pas'},
+                        outputs=['{"answer": "unclear", "confidence": 0.9}'])
+        self.assertIsNone(r.json()['data']['answer'])
+        self.assertEqual(len(self.fake.calls), 1)   # pas de raccourci : le modèle a été appelé
+
+    def test_via_model(self):
+        r = self.answer('elle a bougé un peu la main quand je lui ai parlé',
+                        outputs=['{"answer": "yes", "confidence": 0.85}'])
+        self.assertEqual(r.status_code, 200, r.content)
+        data = r.json()['data']
+        self.assertEqual(data, {'lang': 'fr', 'answer': 'yes', 'confidence': 0.85})
+        system, user = self.fake.calls[0]
+        self.assertTrue(system.startswith('Tu es un classifieur.'))
+        self.assertIn('- yes : Oui, elle réagit', system)
+        self.assertIn('- no : Non, aucune réaction', system)
+        self.assertIn('- unclear', system)
+        self.assertEqual(user, 'elle a bougé un peu la main quand je lui ai parlé')
+
+    def test_via_model_english(self):
+        r = self.answer('she moved her hand a little when I spoke', lang='en',
+                        options={'yes': 'Yes, she reacts', 'no': 'No reaction'},
+                        outputs=['{"answer": "yes", "confidence": 0.8}'])
+        self.assertEqual(r.json()['data']['answer'], 'yes')
+        self.assertTrue(self.fake.calls[0][0].startswith('You are a classifier.'))
+
+    def test_unclear_invented_and_threshold(self):
+        r = self.answer('je ne sais pas trop', outputs=['{"answer": "unclear", "confidence": 0.9}'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'answer': None, 'confidence': 0.9})
+        with self.assertLogs('apps.firstaid.classify', level='WARNING'):
+            r = self.answer('je ne sais pas trop', outputs=['{"answer": "maybe", "confidence": 0.9}'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'answer': None, 'confidence': 0.0})
+        with self.assertLogs('apps.firstaid.classify', level='WARNING'):
+            r = self.answer('je ne sais pas trop', outputs=['pas du json'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'answer': None, 'confidence': 0.0})
+        r = self.answer('elle bouge un peu', outputs=['{"answer": "yes", "confidence": 0.3}'])
+        self.assertEqual(r.json()['data'], {'lang': 'fr', 'answer': None, 'confidence': 0.3})
+
+    def test_options_validation(self):
+        bad = [None, 'x', {}, {'yes': 'Oui'}, {'yes': 'Oui', 'no': ''}, {'yes': 'Oui', 'no': 3},
+               {'Yes': 'Oui', 'no': 'Non'}, {'yes': 'Oui', 'unclear': 'Non'}, {'yes': 'Oui', 'no': 'x' * 121},
+               {f'k{i}': 'v' for i in range(9)}]
+        for options in bad:
+            r = self.post(self.ANSWER, {'text': 'elle bouge', 'lang': 'fr', 'options': options})
+            self.assertEqual(r.status_code, 400, options)
+            self.assertEqual(r.json()['error']['code'], 'options_invalid', options)
+        self.assertEqual(self.fake.calls, [])
+        r = self.post(self.ANSWER, {'text': 'ok', 'options': self.OPTIONS})
+        self.assertEqual(r.json()['error']['code'], 'lang_undetermined')
+
+    def test_model_text_never_leaks(self):
+        for raw in (f'{TRAP} allongez-la', f'{{"answer": "{TRAP}", "confidence": 0.9}}',
+                    f'{{"answer": "yes", "confidence": 0.9, "note": "{TRAP}"}}'):
+            r = self.answer('elle bouge un peu', outputs=[raw])
+            self.assertEqual(r.status_code, 200)
+            self.assertNotIn(TRAP, r.content.decode(), raw)
+
+    def test_classifier_unavailable_is_503(self):
+        from .classify import ClassifierUnavailable
+        r = self.answer('elle bouge un peu', outputs=[ClassifierUnavailable('délai')])
+        self.assertEqual(r.status_code, 503)
+        self.assertEqual(r.json()['error']['code'], 'classifier_unavailable')

@@ -328,12 +328,23 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 - [x] `apps/firstaid/views.py` + `urls.py` → endpoints publics lecture seule sous `/api/v1/firstaid/`,
       n'appellent QUE `publishable_protocols()`, `lang=fr|en` obligatoire, AllowAny, throttle `firstaid`,
       Cache-Control 1 h + ETag, `review_notes` jamais servi, `validated_by` réduit
+- [x] `apps/firstaid/lang.py` → `detect_lang(text)` heuristique (fr | en | None), sans modèle
+- [x] `apps/firstaid/classify.py` → reconnaissance de scénario par Groq (`GROQ_MODEL_FAST`, HTTP direct via
+      `requests`, pas de SDK). Le modèle ne fait que RECONNAÎTRE : il choisit un id parmi
+      `publishable_protocols()` + `none` (ou une clé d'option + `unclear`), en JSON strict. Toute anomalie
+      (JSON invalide, id hors liste, confiance hors [0,1]) → null / 0 + journal. **Aucun texte produit par le
+      modèle n'est jamais renvoyé au client.** Liste vide → null sans appel. Clé absente ou réseau → 503.
+- [x] `POST classify/` et `POST answer/` dans `views.py` (AllowAny, throttle `firstaid`, aucune BDD,
+      `text` ≤ 1000 caractères, `lang` optionnel → détection, `Cache-Control: no-store`)
 
 **Endpoints firstaid :**
 ```
 GET /api/v1/firstaid/protocols/?lang=fr|en        liste des protocoles publiables (id, title, description, version, updated_at, status, variants)
 GET /api/v1/firstaid/protocols/:id/?lang=fr|en    protocole complet dans une langue + emergency_number
 GET /api/v1/firstaid/meta/?lang=fr|en             emergency_number, languages, protocol_count
+POST /api/v1/firstaid/classify/  {text, lang?}     → {lang, scenario|null, confidence, protocol{id,title,description,version,status}|null, emergency_number}
+POST /api/v1/firstaid/answer/    {text, lang?, options{key: libellé}}  → {lang, answer: key|null, confidence}
+                                                   (oui/non/yes/no triviaux convertis sans modèle ; seuil FIRSTAID_CLASSIFY_MIN)
 ```
 
 ---
@@ -446,6 +457,9 @@ celery -A config beat --loglevel=info
 | `DJANGO_SETTINGS_MODULE` | ✅ | `config.settings.staging` sur Railway (test) ; `config.settings.production` au lancement public |
 | `FIRSTAID_ALLOW_DRAFTS` | staging | `True` sur Railway (test) pour servir les protocoles brouillons ; ignorée en production |
 | `EMERGENCY_NUMBER` | optionnel | Numéro d'urgence affiché par firstaid (défaut 442) |
+| `GROQ_API_KEY` | ⚠️ classify | Clé Groq pour `POST firstaid/classify/` et `answer/` ; absente → 503 `classifier_unavailable` |
+| `GROQ_MODEL_FAST` | optionnel | Modèle Groq de classification (défaut `openai/gpt-oss-20b`, comme l'app mobile) |
+| `FIRSTAID_CLASSIFY_MIN` | optionnel | Confiance minimale pour retenir un scénario (défaut 0.6) |
 | `SMS_ENABLED` | ✅ | `False` tant que l'envoi réel de SMS n'est pas voulu |
 
 ---
