@@ -294,6 +294,14 @@ FIRSTAID_CLASSIFY_MIN = env.float('FIRSTAID_CLASSIFY_MIN', default=0.6)  # confi
 # Lieux d'urgence autour de moi (apps.urgences.places) : contact affiché dans le
 # User-Agent envoyé aux miroirs Overpass (politique d'usage d'OpenStreetMap).
 EMERGENCY_PLACES_CONTACT = env('EMERGENCY_PLACES_CONTACT', default='admin@kendeya.com')
+EMERGENCY_PLACES_TIMEOUT = env.float('EMERGENCY_PLACES_TIMEOUT', default=8.0)   # secondes par miroir Overpass
+# Points préchauffés toutes les 4 h (warm_emergency_places), format "nom:lat:lon".
+# Addis-Abeba : tests du DG en déplacement — à retirer après.
+EMERGENCY_PLACES_WARM_POINTS = env.list('EMERGENCY_PLACES_WARM_POINTS', default=[
+    'Conakry:9.537:-13.678', 'Kindia:10.056:-12.866', 'Labé:11.318:-12.283', 'Kankan:10.385:-9.306',
+    "N'Zérékoré:7.756:-8.818", 'Boké:10.940:-14.291', 'Mamou:10.376:-12.084', 'Faranah:10.040:-10.743',
+    'Addis-Abeba:9.03:38.74',
+])
 from celery.schedules import crontab
 
 CELERY_BEAT_SCHEDULE = {

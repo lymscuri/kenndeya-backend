@@ -20,8 +20,23 @@ def start_scheduler():
         id='process_sms_reminders',
         replace_existing=True,
     )
+    # Préchauffage du cache des lieux d'urgence (apps.urgences.warm) : même
+    # scheduler, même cycle de vie. Chaque worker gunicorn lance ce scheduler ;
+    # le verrou dans le cache (warm_all) garantit une seule exécution à la fois.
+    from datetime import datetime, timedelta
+    from apps.urgences.warm import WARM_FIRST_DELAY_S, WARM_INTERVAL_HOURS, scheduled_warm
+    _scheduler.add_job(
+        scheduled_warm,
+        trigger=IntervalTrigger(hours=WARM_INTERVAL_HOURS),
+        next_run_time=datetime.now() + timedelta(seconds=WARM_FIRST_DELAY_S),
+        id='warm_emergency_places',
+        replace_existing=True,
+        max_instances=1,
+    )
     _scheduler.start()
     logger.info('SMS Scheduler started — checking every 30 minutes')
+    logger.info('Emergency places warm-up scheduled — first run in %ds, then every %dh',
+                WARM_FIRST_DELAY_S, WARM_INTERVAL_HOURS)
 
 def stop_scheduler():
     global _scheduler

@@ -316,7 +316,14 @@ throttle `emergency_places` (60/h par IP), `Cache-Control: no-store`. **`hospita
       sinon `referential_only`. Jamais de 5xx tant que la base répond. Chaque échec journalisé (miroir, code).
 - [x] `core/throttling.py` → `ScopedAnonThrottle` (ScopedRateThrottle ignore les vues `@api_view` : il lit
       `view.throttle_scope`, absent) ; utilisé par firstaid et places
-- [x] `apps/urgences/test_places.py` → 13 tests (`manage.py test apps.urgences.test_places`)
+- [x] `apps/urgences/warm.py` + `management/commands/warm_emergency_places.py` → préchauffage du cache pour
+      `EMERGENCY_PLACES_WARM_POINTS` (rayon défaut + 15 km, appels Overpass espacés de 10 s), verrou cache
+      `places:warm:lock` (TTL 30 min) : une seule exécution à la fois, commande manuelle comprise
+- [x] job APScheduler `warm_emergency_places` ajouté dans `apps/sms/scheduler.py` (même mécanisme que le
+      scheduler SMS, lancé par chaque worker gunicorn) : premier passage 2 min après le démarrage, puis toutes
+      les 4 h. Cache frais 6 h, stale 7 jours. Miroirs : overpass-api.de, kumi.systems, private.coffee
+      (timeout `EMERGENCY_PLACES_TIMEOUT`, 8 s). Jamais overpass.osm.ch (Suisse seulement).
+- [x] `apps/urgences/test_places.py` → 21 tests (`manage.py test apps.urgences.test_places`)
 
 ```
 GET /api/v1/emergency/places/?lat=&lon=&radius=&lang=   lat/lon obligatoires, radius m (défaut 5000, max 25000), lang fr|en
@@ -484,6 +491,8 @@ celery -A config beat --loglevel=info
 | `FIRSTAID_ALLOW_DRAFTS` | staging | `True` sur Railway (test) pour servir les protocoles brouillons ; ignorée en production |
 | `EMERGENCY_NUMBER` | optionnel | Numéro d'urgence affiché par firstaid (défaut 442) |
 | `EMERGENCY_PLACES_CONTACT` | optionnel | Contact dans le User-Agent envoyé à Overpass (défaut admin@kendeya.com) |
+| `EMERGENCY_PLACES_TIMEOUT` | optionnel | Timeout par miroir Overpass en secondes (défaut 8) |
+| `EMERGENCY_PLACES_WARM_POINTS` | optionnel | Points préchauffés toutes les 4 h, `nom:lat:lon` séparés par des virgules (défaut : 8 villes de Guinée + Addis-Abeba, à retirer) |
 | `GROQ_API_KEY` | ⚠️ classify | Clé Groq pour `POST firstaid/classify/` et `answer/` ; absente → 503 `classifier_unavailable` |
 | `GROQ_MODEL_FAST` | optionnel | Modèle Groq de classification (défaut `openai/gpt-oss-20b`, comme l'app mobile) |
 | `FIRSTAID_CLASSIFY_MIN` | optionnel | Confiance minimale pour retenir un scénario (défaut 0.6) |

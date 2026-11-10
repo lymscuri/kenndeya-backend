@@ -3,7 +3,8 @@ Lieux d'urgence « autour de moi » : OpenStreetMap (Overpass) + référentiel H
 
 Exécuté côté serveur à la place de l'appel direct de l'app à Overpass :
 - miroirs Overpass en repli, timeout, User-Agent identifié, 429 respecté ;
-- cache 6 h par cellule géographique (~1 km) + copie « stale » 48 h ;
+- cache 6 h par cellule géographique (~1 km) + copie « stale » 7 jours ;
+- préchauffage périodique des villes (warm.py) : l'app ne dépend plus d'Overpass en temps réel ;
 - Overpass en échec → stale si disponible, sinon référentiel seul.
   Jamais de 5xx tant que la base répond.
 
@@ -30,13 +31,15 @@ KINDS = ('hospital', 'clinic', 'pharmacy', 'health_center')
 RADIUS_DEFAULT = 5000
 RADIUS_MAX = 25000
 MERGE_DISTANCE_M = 60
-CACHE_TTL = 6 * 3600
-STALE_TTL = 48 * 3600
+CACHE_TTL = 6 * 3600              # cache frais ; le préchauffage toutes les 4 h le renouvelle avant expiration
+STALE_TTL = 7 * 24 * 3600         # copie stale : couvre une longue panne d'Overpass
 CACHE_VERSION = 'v1'
-OVERPASS_TIMEOUT = 20
+OVERPASS_TIMEOUT_DEFAULT = 8      # secondes par miroir (réglage EMERGENCY_PLACES_TIMEOUT)
 OVERPASS_MIRRORS = (
     'https://overpass-api.de/api/interpreter',
     'https://overpass.kumi.systems/api/interpreter',
+    'https://overpass.private.coffee/api/interpreter',
+    # PAS overpass.osm.ch : il ne couvre que la Suisse (0 élément partout ailleurs, trompeur).
 )
 
 # Noms génériques pour les lieux OSM sans nom : en urgence, une pharmacie sans
@@ -98,6 +101,10 @@ def overpass_query(lat: float, lon: float, radius: int) -> str:
     )
 
 
+def overpass_timeout() -> float:
+    return float(getattr(settings, 'EMERGENCY_PLACES_TIMEOUT', OVERPASS_TIMEOUT_DEFAULT))
+
+
 def _user_agent() -> str:
     contact = getattr(settings, 'EMERGENCY_PLACES_CONTACT', '')
     return f'KendeyaBackend/1.0 (application de santé, Guinée; contact: {contact})'
@@ -112,7 +119,7 @@ def fetch_overpass(lat: float, lon: float, radius: int) -> list[dict[str, Any]]:
     headers = {'User-Agent': _user_agent(), 'Accept': 'application/json'}
     for mirror in OVERPASS_MIRRORS:
         try:
-            resp = requests.post(mirror, data={'data': query}, headers=headers, timeout=OVERPASS_TIMEOUT)
+            resp = requests.post(mirror, data={'data': query}, headers=headers, timeout=overpass_timeout())
         except requests.RequestException as exc:
             logger.warning('overpass échec miroir=%s erreur=%s', mirror, exc.__class__.__name__)
             continue

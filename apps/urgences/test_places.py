@@ -122,7 +122,7 @@ class PlacesApiTests(TestCase):
         self.assertIn('out center body;', kw['data']['data'])
         self.assertIn('Kendeya', kw['headers']['User-Agent'])
         self.assertIn('contact: ', kw['headers']['User-Agent'])
-        self.assertEqual(kw['timeout'], 20)
+        self.assertEqual(kw['timeout'], 8.0)                                   # EMERGENCY_PLACES_TIMEOUT par défaut
 
     def test_generic_name_in_english(self):
         r = self.get(lang='en')
@@ -199,7 +199,7 @@ class PlacesApiTests(TestCase):
     def test_overpass_429_serves_stale(self):
         first = self.get().json()['data']
         cache.delete(cell_key(LAT, LON, 5000))                             # entrée fraîche expirée, stale conservée
-        self.responses = [_Resp(429), _Resp(429)]
+        self.responses = [_Resp(429), _Resp(429), _Resp(429)]
         with self.assertLogs('apps.urgences.places', level='WARNING') as logs:
             r = self.get()
         self.assertEqual(r.status_code, 200)
@@ -207,7 +207,7 @@ class PlacesApiTests(TestCase):
         self.assertEqual(data['source'], 'stale')
         self.assertEqual(data['generated_at'], first['generated_at'])
         self.assertEqual(data['places'], first['places'])
-        self.assertEqual(len(self.calls), 3)                              # 1 + un essai par miroir, pas de retry
+        self.assertEqual(len(self.calls), 4)                              # 1 + un essai par miroir (3), pas de retry
         joined = '\n'.join(logs.output)
         self.assertIn('code=429', joined)
         for mirror in OVERPASS_MIRRORS:
@@ -216,7 +216,7 @@ class PlacesApiTests(TestCase):
     def test_overpass_down_without_cache_serves_referential_only(self):
         ref = Hospital.objects.create(name='Hôpital Ignace Deen', address='Kaloum', city='Conakry',
                                       phone='+224 622 00 00 01', latitude=LAT - 0.005, longitude=LON)
-        self.responses = [requests.ConnectionError('refusé'), requests.Timeout('délai')]
+        self.responses = [requests.ConnectionError('refusé'), requests.Timeout('délai'), _Resp(504)]
         with self.assertLogs('apps.urgences.places', level='WARNING'):
             r = self.get()
         self.assertEqual(r.status_code, 200)                              # jamais de 5xx
@@ -237,7 +237,42 @@ class PlacesApiTests(TestCase):
             with self.assertLogs('apps.urgences.places', level='WARNING'):
                 r = self.get()
             self.assertEqual(r.json()['data']['source'], 'live', first)
-            self.assertEqual([c[0] for c in self.calls], list(OVERPASS_MIRRORS), first)
+            self.assertEqual([c[0] for c in self.calls], list(OVERPASS_MIRRORS[:2]), first)
+
+    def test_third_mirror_after_two_failures(self):
+        self.assertEqual(len(OVERPASS_MIRRORS), 3)
+        self.assertEqual(OVERPASS_MIRRORS[2], 'https://overpass.private.coffee/api/interpreter')
+        self.assertFalse(any('osm.ch' in m for m in OVERPASS_MIRRORS))      # Suisse seulement : exclu
+        self.responses = [_Resp(502), requests.Timeout('délai'), _Resp(200, {'elements': ELEMENTS})]
+        with self.assertLogs('apps.urgences.places', level='WARNING'):
+            r = self.get()
+        self.assertEqual(r.json()['data']['source'], 'live')
+        self.assertEqual([c[0] for c in self.calls], list(OVERPASS_MIRRORS))
+
+    @override_settings(EMERGENCY_PLACES_TIMEOUT=3)
+    def test_timeout_setting_is_passed_to_requests(self):
+        self.get()
+        self.assertEqual(self.calls[0][1]['timeout'], 3.0)
+
+    def test_stale_served_after_six_hours_then_referential_only_after_seven_days(self):
+        import time as _time
+        from .places import CACHE_TTL, STALE_TTL
+        self.assertEqual(CACHE_TTL, 6 * 3600)
+        self.assertEqual(STALE_TTL, 7 * 24 * 3600)
+        t0 = _time.time()
+        first = self.get().json()['data']
+        self.assertEqual(first['source'], 'live')
+        with mock.patch('time.time', return_value=t0 + 6 * 3600 + 1):       # cache frais expiré
+            self.responses = [_Resp(429), _Resp(429), _Resp(429)]
+            with self.assertLogs('apps.urgences.places', level='WARNING'):
+                data = self.get().json()['data']
+            self.assertEqual(data['source'], 'stale')
+            self.assertEqual(data['places'], first['places'])
+        with mock.patch('time.time', return_value=t0 + STALE_TTL + 1):      # stale expirée aussi
+            self.responses = [_Resp(429), _Resp(429), _Resp(429)]
+            with self.assertLogs('apps.urgences.places', level='WARNING'):
+                data = self.get().json()['data']
+            self.assertEqual(data['source'], 'referential_only')
 
     # --- accès ---------------------------------------------------------------------------
 
@@ -270,3 +305,95 @@ class HaversineTests(TestCase):
         self.assertAlmostEqual(haversine_m(LAT, LON, LAT + 0.001, LON), 111.2, delta=0.5)
         # Conakry → Labé ≈ 250 km
         self.assertAlmostEqual(haversine_m(LAT, LON, 11.318, -12.283), 250_000, delta=5_000)
+
+
+# ==============================================================================
+# Préchauffage (warm.py, commande warm_emergency_places, job planifié)
+# ==============================================================================
+
+from io import StringIO
+
+from django.core.management import call_command
+
+from . import warm
+from .places import PlacesResult
+
+
+class WarmTests(TestCase):
+
+    POINTS = ['Conakry:9.537:-13.678', 'Labé:11.318:-12.283', 'Addis-Abeba:9.03:38.74']
+
+    def setUp(self):
+        cache.clear()
+        self.sleeps = []
+        patcher = mock.patch('apps.urgences.warm.time.sleep', side_effect=self.sleeps.append)
+        patcher.start(); self.addCleanup(patcher.stop)
+
+    def test_parse_points(self):
+        pts = warm.parse_points(["N'Zérékoré:7.756:-8.818", 'mauvais', 'x:91:0', 'Labé:11.318:-12.283'])
+        self.assertEqual([(p.name, p.lat, p.lon) for p in pts],
+                         [("N'Zérékoré", 7.756, -8.818), ('Labé', 11.318, -12.283)])
+        self.assertEqual(len(warm.warm_points()), 9)                     # défaut des réglages, Addis compris
+
+    @override_settings(EMERGENCY_PLACES_WARM_POINTS=POINTS)
+    def test_command_processes_all_points_even_if_one_fails(self):
+        def fake_get_places(lat, lon, radius, lang='fr'):
+            if abs(lat - 11.318) < 1e-6:
+                raise RuntimeError('base indisponible')
+            source = 'cache' if (lat, radius) == (9.03, 5000) else 'live'
+            return PlacesResult([{'id': 'osm:node:1'}] * (2 if radius == 5000 else 5), source, 'now')
+        out = StringIO()
+        with mock.patch('apps.urgences.warm.get_places', side_effect=fake_get_places) as gp:
+            with self.assertLogs('apps.urgences.warm', level='INFO') as logs:
+                call_command('warm_emergency_places', stdout=out)
+        self.assertEqual(gp.call_count, 6)                               # 3 points × 2 rayons, malgré l'échec
+        self.assertEqual([c.args[2] for c in gp.call_args_list], [5000, 15000] * 3)
+        text = out.getvalue()
+        self.assertIn('Conakry      r=5000   source=live', text)
+        self.assertIn('Labé         r=5000   source=error', text)
+        self.assertIn('Addis-Abeba  r=5000   source=cache', text)
+        self.assertIn('6 appels, 2 en erreur', text)
+        joined = '\n'.join(logs.output)
+        self.assertIn('warm Labé r=5000 ÉCHEC RuntimeError: base indisponible', joined)
+        self.assertIn('warm Conakry r=15000 source=live lieux=5', joined)
+        self.assertEqual(self.sleeps, [10] * 5)                          # pas d'attente après un hit cache
+        self.assertIsNone(cache.get(warm.LOCK_KEY))                      # verrou relâché
+
+    @override_settings(EMERGENCY_PLACES_WARM_POINTS=POINTS)
+    def test_lock_prevents_concurrent_run(self):
+        self.assertTrue(warm.acquire_lock())
+        with mock.patch('apps.urgences.warm.get_places') as gp:
+            with self.assertLogs('apps.urgences.warm', level='WARNING'):
+                self.assertIsNone(warm.warm_all())
+            gp.assert_not_called()
+            with self.assertRaises(Exception) as ctx:
+                call_command('warm_emergency_places', stdout=StringIO())
+            self.assertIn('déjà en cours', str(ctx.exception))
+            # le job planifié ne lève rien et ne fait rien non plus
+            with self.assertLogs('apps.urgences.warm', level='WARNING'):
+                warm.scheduled_warm()
+            gp.assert_not_called()
+        warm.release_lock()
+        with mock.patch('apps.urgences.warm.get_places', return_value=PlacesResult([], 'live', 'now')) as gp:
+            self.assertEqual(len(warm.warm_all()), 6)
+            self.assertEqual(gp.call_count, 6)
+
+    def test_lock_released_even_on_unexpected_error(self):
+        with mock.patch('apps.urgences.warm.warm_points', side_effect=RuntimeError('boum')):
+            with self.assertRaises(RuntimeError):
+                warm.warm_all()
+        self.assertIsNone(cache.get(warm.LOCK_KEY))
+
+    def test_scheduled_job_registered_with_sms_scheduler(self):
+        from datetime import datetime, timedelta
+        from apscheduler.triggers.interval import IntervalTrigger
+        from apps.sms.scheduler import _scheduler
+        job = _scheduler.get_job('warm_emergency_places')
+        self.assertIsNotNone(job)
+        self.assertEqual(job.func, warm.scheduled_warm)
+        self.assertIsInstance(job.trigger, IntervalTrigger)
+        self.assertEqual(job.trigger.interval, timedelta(hours=4))
+        self.assertEqual(job.max_instances, 1)
+        self.assertIsNotNone(_scheduler.get_job('process_sms_reminders'))   # le job SMS est toujours là
+        self.assertEqual(warm.WARM_FIRST_DELAY_S, 120)
+        self.assertEqual(warm.LOCK_TTL, 30 * 60)
