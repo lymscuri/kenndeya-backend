@@ -89,14 +89,23 @@ def kind_from_tags(tags: dict[str, str]) -> str | None:
     return kind if kind in KINDS else None
 
 
+# Longueurs des colonnes OsmHealthPlace : OSM n'impose aucune limite (un phone
+# de 70 caractères listant trois numéros existe en Éthiopie), on tronque.
+MAX_NAME, MAX_PHONE, MAX_ADDRESS = 255, 64, 255
+
+
+def _cut(value: str | None, limit: int) -> str | None:
+    return value[:limit] if value else value
+
+
 def place_fields(tags: dict[str, str]) -> dict[str, Any]:
-    """Champs dérivés (règles tri-état : jamais False par défaut)."""
+    """Champs dérivés (règles tri-état : jamais False par défaut), tronqués aux longueurs du modèle."""
     emergency = emergency_from_tags(tags)
     is_24h = True if (tags.get('opening_hours') == '24/7' or emergency is True) else None
     return {
-        'name': name_from_tags(tags),
-        'phone': phone_from_tags(tags) or '',
-        'address': address_from_tags(tags) or '',
+        'name': _cut(name_from_tags(tags), MAX_NAME),
+        'phone': _cut(phone_from_tags(tags), MAX_PHONE) or '',
+        'address': _cut(address_from_tags(tags), MAX_ADDRESS) or '',
         'is_24h': is_24h,
         'has_emergency': emergency,
         'has_maternity': maternity_from_tags(tags),

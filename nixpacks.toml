@@ -1,11 +1,15 @@
 # Railway (Nixpacks). Python vient de Nix : son loader ignore /usr/lib/x86_64-linux-gnu.
 # Le wheel manylinux de pyosmium (paquet osmium, import des lieux de santé OSM) a besoin
-# de libexpat.so.1, libz.so.1, libstdc++.so.6 et libgcc_s.so.1.
-# nixLibs les installe dans le store ; Nixpacks ne les ajoute pas à LD_LIBRARY_PATH
-# (constaté le 2026-11-10 : la variable reste "/usr/lib"), d'où les chemins explicites
-# ci-dessous (hashes du nixpkgs épinglé par Nixpacks, vérifiés dans le conteneur :
-# avec ces trois répertoires, `import osmium` passe). À revérifier si Railway change
-# de version de Nixpacks (le hash change alors et l'import échoue avec ImportError).
+# de libexpat.so.1, libz.so.1, libstdc++.so.6 et libgcc_s.so.1 : nixLibs les installe
+# dans le store Nix.
+#
+# Nixpacks n'ajoute pas ces répertoires à LD_LIBRARY_PATH, et la section [variables]
+# ci-dessous n'atteint pas non plus l'environnement d'exécution (constaté le 2026-11-10 :
+# la variable reste "/usr/lib"). Le réglage EFFECTIF est la variable de service Railway
+# LD_LIBRARY_PATH (voir CLAUDE.md), qui reprend exactement cette valeur. Les hashes sont
+# ceux du nixpkgs épinglé par Nixpacks : si Railway change de version de Nixpacks,
+# `import osmium` échoue (ImportError libz/libexpat) et il faut relever les nouveaux
+# chemins (`ls -d /nix/store/*-expat-*/lib /nix/store/*-zlib-*/lib /nix/store/*-gcc-*-lib/lib`).
 [phases.setup]
 nixLibs = ["expat", "zlib", "stdenv.cc.cc.lib"]
 

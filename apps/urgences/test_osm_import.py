@@ -112,6 +112,13 @@ class OsmImportTests(TestCase):
         self.assertAlmostEqual(rel['lat'], LAT + 0.001, places=6)
         self.assertAlmostEqual(rel['lon'], LON + 0.021, places=6)
 
+    def test_long_text_fields_are_truncated_to_model_lengths(self):
+        f = osm_import.place_fields({'name': 'N' * 300, 'phone': '+251 11 ' + '9' * 70,
+                                     'addr:street': 'S' * 300, 'addr:city': 'Addis'})
+        self.assertEqual((len(f['name']), len(f['phone']), len(f['address'])), (255, 64, 255))
+        self.assertIsNone(osm_import.place_fields({})['name'])                 # None reste None
+        self.assertEqual(osm_import.place_fields({})['phone'], '')
+
     def test_kind_from_tags(self):
         self.assertEqual(osm_import.kind_from_tags({'amenity': 'pharmacy'}), 'pharmacy')
         self.assertEqual(osm_import.kind_from_tags({'healthcare': 'health_post'}), 'health_center')

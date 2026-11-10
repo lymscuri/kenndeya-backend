@@ -512,6 +512,7 @@ celery -A config beat --loglevel=info
 | `EMERGENCY_PLACES_TIMEOUT` | optionnel | Timeout par miroir Overpass en secondes (défaut 8) |
 | `EMERGENCY_PLACES_WARM_POINTS` | optionnel | Points préchauffés toutes les 4 h, `nom:lat:lon` séparés par des virgules (défaut : 8 villes de Guinée ; un point couvert par un import répond depuis la base sans Overpass) |
 | `EMERGENCY_PLACES_COUNTRIES` | optionnel | Pays importés chaque dimanche 03:00 UTC (`import_osm_health`), codes ISO2 séparés par des virgules (défaut `GN` ; `GN,ET` sur Railway pendant le séjour du DG à Addis) |
+| `LD_LIBRARY_PATH` | ✅ Railway | Répertoires expat, zlib et gcc-lib du store Nix + `/usr/lib` (valeur dans `nixpacks.toml`) : sans elle `import osmium` échoue (Python Nix, wheel manylinux). À relever si Railway change de version de Nixpacks |
 | `GROQ_API_KEY` | ⚠️ classify | Clé Groq pour `POST firstaid/classify/` et `answer/` ; absente → 503 `classifier_unavailable` |
 | `GROQ_MODEL_FAST` | optionnel | Modèle Groq de classification (défaut `openai/gpt-oss-20b`, comme l'app mobile) |
 | `FIRSTAID_CLASSIFY_MIN` | optionnel | Confiance minimale pour retenir un scénario (défaut 0.6) |
