@@ -287,6 +287,7 @@ FIRSTAID_ALLOW_DRAFTS = env.bool('FIRSTAID_ALLOW_DRAFTS', default=False)
 GROQ_API_KEY = env('GROQ_API_KEY', default='')                       # vide → 503 classifier_unavailable
 GROQ_MODEL_FAST = env('GROQ_MODEL_FAST', default='openai/gpt-oss-20b')  # même défaut que l'app mobile
 GROQ_TIMEOUT = env.float('GROQ_TIMEOUT', default=8.0)                 # secondes
+GROQ_REASONING_EFFORT = env('GROQ_REASONING_EFFORT', default='low')  # gpt-oss/qwen3 ; '' pour l'omettre
 FIRSTAID_CLASSIFY_MIN = env.float('FIRSTAID_CLASSIFY_MIN', default=0.6)  # confiance minimale
 from celery.schedules import crontab
 

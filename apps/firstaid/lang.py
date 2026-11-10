@@ -21,14 +21,14 @@ le la les un une des du de et ou est sont il elle ils elles je tu nous vous
 ne pas mais que qui quoi dans sur avec pour sans sa ses mon ma mes ton ta tes
 ce cette ces cet au aux se lui leur très bien oui non depuis chez où comme
 tout tous toute toutes après avant encore aussi fait faut peut va vais suis
-ai été être avoir quand parce car donc alors déjà ici là moi toi
+ai été être avoir quand parce car donc alors déjà ici là moi toi ouais
 """.split())
 
 EN_WORDS = frozenset("""
 the an and or is are was were be been being he she it they we you i my his
 her their our your not no yes but with for from this that these those there
 here has have had do does did can cannot could will would should of in at to
-into what who which when how very just still now while because then
+into what who which when how very just still now while because then nope yep yeah nah
 """.split())
 
 # Élisions françaises en début de mot : j'ai, l'enfant, qu'il, n'est…

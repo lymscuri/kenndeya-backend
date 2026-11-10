@@ -35,6 +35,7 @@ GROQ_URL = 'https://api.groq.com/openai/v1/chat/completions'
 NONE = 'none'
 UNCLEAR = 'unclear'
 RAW_LOG_LIMIT = 300  # caractères du brut journalisés en cas d'anomalie
+MAX_TOKENS = 400     # jetons de raisonnement inclus : 60 suffisaient pour le JSON, pas pour gpt-oss
 
 # Réponses triviales converties sans modèle (après normalisation : minuscules,
 # ponctuation retirée). Communes aux deux langues : un « oui » est un oui.
@@ -128,7 +129,7 @@ def answer_system_prompt(lang: str, options: dict[str, str]) -> str:
 class GroqClient:
     """Un appel = une complétion courte, température 0, sortie JSON demandée."""
 
-    def complete(self, system: str, user: str, *, max_tokens: int = 60) -> str:
+    def complete(self, system: str, user: str, *, max_tokens: int = MAX_TOKENS) -> str:
         api_key = getattr(settings, 'GROQ_API_KEY', '')
         if not api_key:
             raise ClassifierUnavailable('GROQ_API_KEY absente')
@@ -142,6 +143,11 @@ class GroqClient:
                 {'role': 'user', 'content': user},
             ],
         }
+        # Modèles à raisonnement (gpt-oss, qwen3) : les jetons de raisonnement comptent
+        # dans max_tokens ; on limite l'effort pour garder une réponse courte et rapide.
+        effort = getattr(settings, 'GROQ_REASONING_EFFORT', '')
+        if effort:
+            payload['reasoning_effort'] = effort
         try:
             resp = requests.post(
                 GROQ_URL, json=payload, timeout=settings.GROQ_TIMEOUT,
