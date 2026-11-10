@@ -1,0 +1,591 @@
+# =============================================================================
+# PROTOCOLE : saignement abondant (hémorragie externe sévère)
+# -----------------------------------------------------------------------------
+# Ce fichier est LA source de chaque phrase affichée à l'utilisateur. Aucun
+# modèle de langage n'intervient. Chaque étape cite la page de la source dont
+# elle est tirée (source_page) pour permettre une relecture ligne par ligne.
+#
+# BILINGUE : chaque texte affiché porte `fr` ET `en`, obligatoires. Le texte `en`
+# est repris au plus près de l'extrait IFRC 2025 cité par source_page.
+#
+# Sources : IFRC 2025 EN, chapitre « Severe bleeding » p.256-260 (recommandations
+# et bonnes pratiques p.256-257, étapes p.257, « becomes unresponsive » p.258,
+# objet planté « plug » p.259) et chapitre « Shock » p.388-389 (signes du choc,
+# surveillance). Terminologie : IFRC 2020 FR « Hémorragies » p.200-203 et
+# « État de choc » p.311-312.
+#
+# GARROT : l'IFRC 2025 l'admet pour le secouriste non professionnel (p.256, *)
+# UNIQUEMENT si la pression directe est inefficace ET si la plaie est sur un
+# membre ; garrot du commerce préféré, improvisé admis si c'est tout ce qui est
+# disponible ; laissé en place jusqu'aux secours (p.257). Le chapitre ne dit
+# ni où le placer précisément ni de noter l'heure : aucune étape ne l'invente.
+#
+# Règles de rédaction : une phrase par étape, impératif, moins de 15 mots dans
+# chaque langue. Le numéro d'urgence n'est JAMAIS écrit ici : il vient de
+# settings.EMERGENCY_NUMBER.
+#
+# Statut : brouillon NON validé. Ne peut pas être publié tant qu'un médecin
+# n'a pas signé dans validated_by et passé status à 'validated'.
+# =============================================================================
+
+id: severe_bleeding
+title:
+  fr: Saignement abondant (hémorragie externe)
+  en: Severe bleeding (external haemorrhage)
+description:
+  fr: >-
+    Du sang coule ou gicle d'une plaie et ne s'arrête pas : coupure profonde,
+    accident de la route, blessure par machine, couteau ou balle. Il faut
+    appuyer directement sur la plaie le plus vite possible et appeler les
+    secours ; une grosse perte de sang mène au choc puis à la mort.
+  en: >-
+    Blood is flowing or spurting from a wound and does not stop: deep cut,
+    road traffic collision, machinery, knife or gunshot injury. Apply direct
+    pressure to the wound as quickly as possible and access emergency
+    services; major blood loss leads to shock and then death.
+version: 1
+updated_at: 2026-11-10
+status: draft_unvalidated
+validated_by: []
+incomplete: false
+
+# Le numéro d'urgence est affiché avant toute consigne (settings.EMERGENCY_NUMBER).
+call_emergency_first: true
+
+sources:
+  - key: ifrc_2025_en
+    organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (IFRC)
+    title: International first aid, resuscitation and education guidelines 2025
+    edition: "2025"
+    url: https://www.globalfirstaidcentre.org/wp-content/uploads/2026/03/Guidelines-2025_compressed.pdf
+    licence: >-
+      © IFRC, Genève, 2025. Reproduction de tout ou partie autorisée à des fins
+      non commerciales à condition de mentionner la source (page 2 du document).
+    role: content
+    # 256-257 : recommandations, bonnes pratiques, reconnaissance, étapes
+    # 258 : perte de connaissance, appel à l'aide · 259 : objet planté « bouchon »
+    # 388-389 : état de choc (signes, surveillance)
+    pages: [256, 257, 258, 259, 388, 389]
+  - key: ifrc_2020_fr
+    organisation: Fédération internationale des Sociétés de la Croix-Rouge et du Croissant-Rouge (FICR)
+    title: Recommandations internationales en matière de premiers secours, de réanimation et de formation 2020
+    edition: "2020 (édition française)"
+    url: https://www.globalfirstaidcentre.org/wp-content/uploads/2021/02/FR_GFARC-GUIDELINES.pdf
+    licence: >-
+      © FICR, Genève, 2020. Copies de tout ou partie autorisées à des fins non
+      commerciales à condition que la source soit mentionnée (page 2 du document).
+    role: terminology            # référence pour les termes français uniquement
+    pages: [200, 201, 202, 203, 311, 312]
+
+# Pas de variantes d'âge : l'IFRC ne différencie pas les gestes du grand public
+# (seule mention enfant : garrot fabriqué à tourniquet, p.256, voir review_notes).
+variants: {}
+
+decision_tree:
+  entry: q_heavy
+  questions:
+    q_heavy:
+      text:
+        fr: Le sang coule ou gicle de la plaie sans s'arrêter ?
+        en: Is blood flowing or spurting from the wound without stopping?
+      answers:
+        "yes":
+          label:
+            fr: Oui, il coule ou gicle sans s'arrêter
+            en: Yes, flowing or spurting without stopping
+          next_question: q_embedded
+        "no":
+          label:
+            fr: Non, il coule peu
+            en: No, only a little
+          action_block: light_bleeding
+    q_embedded:
+      text:
+        fr: Un objet est-il planté dans la plaie (couteau, verre, métal) ?
+        en: Is an object embedded in the wound (knife, glass, metal)?
+      answers:
+        "yes":
+          label:
+            fr: Oui, un objet est planté
+            en: Yes, an object is embedded
+          action_block: embedded_object
+        "no":
+          label:
+            fr: Non
+            en: "No"
+          action_block: direct_pressure
+    q_controlled:
+      text:
+        fr: Le saignement est-il maîtrisé ?
+        en: Is the bleeding under control?
+      answers:
+        "yes":
+          label:
+            fr: Oui, il a beaucoup diminué ou s'est arrêté
+            en: Yes, it has greatly reduced or stopped
+          action_block: monitor_shock
+        "no":
+          label:
+            fr: Non, il continue malgré la pression
+            en: No, it continues despite the pressure
+          next_question: q_limb
+    q_limb:
+      text:
+        fr: La plaie est-elle sur un bras ou une jambe ?
+        en: Is the wound on an arm or a leg?
+      answers:
+        "yes":
+          label:
+            fr: Oui, sur un bras ou une jambe
+            en: Yes, on an arm or a leg
+          action_block: tourniquet_limb
+        "no":
+          label:
+            fr: Non, ailleurs (tête, cou, tronc)
+            en: No, elsewhere (head, neck, trunk)
+          action_block: press_harder_other
+    q_stopped:
+      text:
+        fr: Le saignement s'est-il arrêté ?
+        en: Has the bleeding stopped?
+      answers:
+        "yes":
+          label:
+            fr: Oui
+            en: "Yes"
+          action_block: monitor_shock
+        "no":
+          label:
+            fr: Non, il continue
+            en: No, it continues
+          next_question: q_embedded
+
+action_blocks:
+
+  # ---------------------------------------------------------------------------
+  # Pression directe : le geste clé (Key action p.256, étapes 1-4 p.257).
+  # ---------------------------------------------------------------------------
+  direct_pressure:
+    title:
+      fr: Appuyer directement sur la plaie
+      en: Apply direct pressure to the wound
+    next_question: q_controlled
+    steps:
+      - text:
+          fr: Protégez vos mains avec des gants, un sac plastique ou un tissu.
+          en: Protect your hands with gloves, a plastic bag or cloth.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 256}
+      - text:
+          fr: Demandez à la personne d'appuyer fort sur sa plaie avec ses mains.
+          en: Ask the person to press hard on their wound with their hands.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Aidez la personne à s'allonger.
+          en: Help the person to lie down.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Appelez les secours et décrivez la blessure et l'état de la personne.
+          en: Access emergency services and describe the injury and the person's condition.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 258}
+      - text:
+          fr: Appuyez fort et directement sur la plaie avec un tissu propre.
+          en: Press firmly and directly on the wound with a clean cloth.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Maintenez une pression forte et continue sur la plaie.
+          en: Keep applying firm, continuous pressure on the wound.
+        visual: ""
+        timer_seconds: 300
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Si le sang traverse, ajoutez un second tissu par-dessus et appuyez plus fort.
+          en: If blood soaks through, add a second dressing over the first and press harder.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+
+  # ---------------------------------------------------------------------------
+  # Objet planté : pression autour, jamais de retrait (p.257 ; « plug » p.259).
+  # ---------------------------------------------------------------------------
+  embedded_object:
+    title:
+      fr: Objet planté dans la plaie
+      en: Object embedded in the wound
+    next_question: q_controlled
+    steps:
+      - text:
+          fr: Protégez vos mains avec des gants, un sac plastique ou un tissu.
+          en: Protect your hands with gloves, a plastic bag or cloth.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 256}
+      - text:
+          fr: Ne retirez pas l'objet planté dans la plaie.
+          en: Do not remove the object embedded in the wound.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: L'objet bouche peut-être la plaie, le retirer aggraverait le saignement.
+          en: The object may be plugging the wound, removing it may worsen the bleeding.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 259}
+      - text:
+          fr: Aidez la personne à s'allonger.
+          en: Help the person to lie down.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Appelez les secours et décrivez la blessure et l'état de la personne.
+          en: Access emergency services and describe the injury and the person's condition.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 258}
+      - text:
+          fr: Appuyez fermement tout autour de l'objet pour le stabiliser.
+          en: Press firmly around the object to keep it steady.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Maintenez la pression autour de l'objet sans relâcher.
+          en: Keep pressing around the object without letting go.
+        visual: ""
+        timer_seconds: 300
+        source_page: {source: ifrc_2025_en, page: 257}
+
+  # ---------------------------------------------------------------------------
+  # Saignement peu abondant : même geste, sans la branche garrot. « Même une
+  # tasse de sang… » (p.257). Voir review_notes.
+  # ---------------------------------------------------------------------------
+  light_bleeding:
+    title:
+      fr: Saignement peu abondant
+      en: Minor bleeding
+    next_question: q_stopped
+    steps:
+      - text:
+          fr: Protégez vos mains avec des gants, un sac plastique ou un tissu.
+          en: Protect your hands with gloves, a plastic bag or cloth.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 256}
+      - text:
+          fr: Demandez à la personne d'appuyer sur sa plaie avec ses mains.
+          en: Ask the person to apply pressure to their wound with their hands.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Appuyez directement sur la plaie avec un tissu propre ou un pansement.
+          en: Apply direct pressure to the wound with a clean cloth or dressing.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Agissez vite, même une tasse de sang perdue peut aggraver l'état.
+          en: Act quickly, even a cupful of blood lost can cause fast deterioration.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Si le sang traverse, ajoutez un second tissu et appuyez plus fort.
+          en: If blood soaks through, add a second dressing and press harder.
+        visual: ""
+        timer_seconds: 300
+        source_page: {source: ifrc_2025_en, page: 257}
+
+  # ---------------------------------------------------------------------------
+  # Saignement maîtrisé : bandage, chaleur, surveillance du choc (p.257, p.389).
+  # ---------------------------------------------------------------------------
+  monitor_shock:
+    title:
+      fr: Surveiller en attendant les secours
+      en: Monitor while waiting for emergency services
+    steps:
+      - text:
+          fr: Une fois le saignement maîtrisé, posez un bandage sur la plaie.
+          en: Once the bleeding is controlled, apply a bandage to the wound.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Si vous n'avez pas encore appelé les secours, appelez-les maintenant.
+          en: If you have not accessed emergency services yet, do so now.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 256}
+      - text:
+          fr: Allongez la personne sur le dos, ou dans une position confortable.
+          en: Help the person lie on their back, or in a comfortable position.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+      - text:
+          fr: Gardez-la au chaud avec des vêtements ou une couverture.
+          en: Keep them warm with clothing or a blanket.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Surveillez les signes de choc, peau pâle ou froide, faiblesse, somnolence.
+          en: Watch for signs of shock, pale or cold skin, weakness, drowsiness.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+      - text:
+          fr: Rassurez la personne en lui parlant, surveillez sa conscience et sa respiration.
+          en: Reassure the person by talking, monitor their responsiveness and breathing regularly.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+      - text:
+          fr: Restez avec elle et continuez la surveillance jusqu'à l'arrivée des secours.
+          en: Stay with them and keep monitoring until emergency services arrive.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+
+  # ---------------------------------------------------------------------------
+  # Pression inefficace, plaie sur un membre : garrot (p.256-257), aux seules
+  # conditions de l'IFRC. Emplacement précis et heure de pose : non donnés par
+  # l'IFRC, donc absents (voir review_notes).
+  # ---------------------------------------------------------------------------
+  tourniquet_limb:
+    title:
+      fr: Pression inefficace sur un bras ou une jambe
+      en: Pressure ineffective on an arm or a leg
+    steps:
+      - text:
+          fr: Continuez d'appuyer fort et directement sur la plaie.
+          en: Keep applying firm, direct pressure to the wound.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Si un garrot est disponible, posez-le sur le membre qui saigne.
+          en: If a tourniquet is available, apply it to the bleeding limb.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Préférez un garrot du commerce, sinon improvisez avec ce que vous avez.
+          en: Prefer a manufactured tourniquet, otherwise improvise with what you have.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 256}
+      - text:
+          fr: Serrez le garrot suffisamment pour que le saignement s'arrête.
+          en: Tighten the tourniquet enough to make the bleeding stop.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Si le saignement continue, ajoutez un second garrot au-dessus du premier.
+          en: If bleeding continues, add a second tourniquet above the first.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Sans garrot, appliquez un pansement hémostatique sur la plaie en appuyant.
+          en: Without a tourniquet, apply a haemostatic dressing to the wound with pressure.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 256}
+      - text:
+          fr: Laissez le garrot en place jusqu'à l'arrivée des secours.
+          en: Keep the tourniquet in place until emergency services arrive.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Installez la personne confortablement et gardez-la au chaud.
+          en: Help the person into a comfortable position and keep them warm.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Surveillez les signes de choc, peau pâle ou froide, faiblesse, somnolence.
+          en: Watch for signs of shock, pale or cold skin, weakness, drowsiness.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+      - text:
+          fr: Rassurez la personne en lui parlant, surveillez sa conscience et sa respiration.
+          en: Reassure the person by talking, monitor their responsiveness and breathing regularly.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+
+  # ---------------------------------------------------------------------------
+  # Pression inefficace hors membre : plus fort, pansement hémostatique (p.257).
+  # ---------------------------------------------------------------------------
+  press_harder_other:
+    title:
+      fr: Pression inefficace sur la tête, le cou ou le tronc
+      en: Pressure ineffective on the head, neck or trunk
+    steps:
+      - text:
+          fr: Appuyez plus fort, de façon continue et directe sur la plaie.
+          en: Apply consistent, direct pressure on the wound with more force.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Si disponible, appliquez un pansement hémostatique sur la plaie en continuant d'appuyer.
+          en: If available, apply a haemostatic dressing to the wound while still pressing.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Ne relâchez pas la pression jusqu'à l'arrivée des secours.
+          en: Do not release the pressure until emergency services arrive.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Installez la personne confortablement et gardez-la au chaud.
+          en: Help the person into a comfortable position and keep them warm.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 257}
+      - text:
+          fr: Surveillez les signes de choc, peau pâle ou froide, faiblesse, somnolence.
+          en: Watch for signs of shock, pale or cold skin, weakness, drowsiness.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+      - text:
+          fr: Rassurez la personne en lui parlant, surveillez sa conscience et sa respiration.
+          en: Reassure the person by talking, monitor their responsiveness and breathing regularly.
+        visual: ""
+        source_page: {source: ifrc_2025_en, page: 389}
+
+# Signes qui interrompent tout : l'application affiche « appelez les secours
+# maintenant » puis bascule vers le scénario indiqué (s'il y en a un).
+red_flags:
+  - text:
+      fr: La personne ne réagit plus (perte de connaissance).
+      en: The person becomes unresponsive (loses consciousness).
+    source_page: {source: ifrc_2025_en, page: 258}
+    switch_to: unconscious_breathing
+  - text:
+      fr: La personne ne respire plus ou respire anormalement.
+      en: The person is not breathing or is breathing abnormally.
+    source_page: {source: ifrc_2025_en, page: 389}
+    switch_to: cardiac_arrest
+  - text:
+      fr: Peau pâle ou cendrée, lèvres bleuâtres, peau froide et moite, sueurs.
+      en: Pale or ashen skin, bluish lips, cool and clammy skin, sweating.
+    source_page: {source: ifrc_2025_en, page: 389}
+  - text:
+      fr: Faiblesse, vertiges, respiration et pouls rapides, anxiété ou somnolence.
+      en: Weakness, dizziness, rapid breathing and pulse, anxiety or drowsiness.
+    source_page: {source: ifrc_2025_en, page: 389}
+
+# Interdits : uniquement ceux présents dans le texte IFRC.
+do_not:
+  - text:
+      fr: Ne retirez jamais un objet planté dans la plaie.
+      en: Never remove an object embedded in the wound.
+    source_page: {source: ifrc_2025_en, page: 257}
+  - text:
+      fr: N'utilisez ni points de compression à distance ni glace pour arrêter le saignement.
+      en: Do not use pressure points or ice to stop the bleeding.
+    source_page: {source: ifrc_2025_en, page: 256}
+  - text:
+      fr: N'enroulez pas un bandage serré autour du membre à la place de la pression directe.
+      en: Do not wrap a tight bandage around the body part instead of direct pressure.
+    source_page: {source: ifrc_2025_en, page: 256}
+  - text:
+      fr: N'utilisez un garrot que pour un saignement d'un membre qui met la vie en danger.
+      en: Only use a tourniquet for life-threatening bleeding from a limb.
+    source_page: {source: ifrc_2025_en, page: 257}
+  - text:
+      fr: Ne desserrez pas et ne retirez pas un garrot posé, attendez les secours.
+      en: Do not loosen or remove a tourniquet once applied, wait for emergency services.
+    source_page: {source: ifrc_2025_en, page: 257}
+  - text:
+      fr: Ne touchez pas le sang à mains nues, couvrez vos mains.
+      en: Do not touch the blood with bare hands, cover your hands.
+    source_page: {source: ifrc_2025_en, page: 256}
+
+# Points à trancher par le médecin relecteur (texte libre, bilingue, sans
+# limite de mots). Rendus dans le dossier de relecture (firstaid_review).
+review_notes:
+  - fr: >-
+      Garrot : l'IFRC 2025 l'autorise pour le secouriste non professionnel
+      (recommandation *, p.256) seulement si la pression directe est inefficace
+      et si la plaie est sur un membre ; garrot du commerce préféré, improvisé
+      admis si c'est tout ce qui est disponible ; laissé en place jusqu'aux
+      secours (p.257) ; levée seulement sur avis d'un professionnel (p.258). Le
+      chapitre n'indique ni l'emplacement précis (seulement « sur la plaie du
+      membre » et « second garrot au-dessus du premier ») ni de noter l'heure de
+      pose : aucune étape ne les invente. L'IFRC demande de décider selon la
+      disponibilité locale des garrots fabriqués et du système de soins (p.258).
+      Garder le bloc garrot pour la Guinée ? Ajouter « notez l'heure » sur
+      décision médicale ?
+    en: >-
+      Tourniquet: IFRC 2025 allows it for lay first aid providers (recommendation
+      *, p.256) only when direct pressure is ineffective and the wound is on a
+      limb; manufactured preferred, improvised allowed if that is all that is
+      available; kept in place until EMS (p.257); release only under
+      professional guidance (p.258). The chapter gives neither the exact
+      placement (only "to an extremity wound" and "a second tourniquet above the
+      first") nor "note the time": no step invents them. IFRC asks to decide
+      according to local availability of manufactured tourniquets and the
+      health system (p.258). Keep the tourniquet block for Guinea? Add "note the
+      time" by medical decision?
+  - fr: >-
+      Timer de 300 secondes sur la pression continue : aucune durée n'est donnée
+      par l'IFRC ; la valeur sert seulement à reposer la question « saignement
+      maîtrisé ? ». À fixer.
+    en: >-
+      300-second timer on continuous pressure: IFRC gives no duration; the value
+      only triggers the "bleeding under control?" question again. To be set.
+  - fr: >-
+      Pansement hémostatique : recommandation * (p.256), mais l'IFRC conseille
+      de ne l'enseigner qu'aux secouristes avancés ou en zone isolée (p.259).
+      Inclus en étape conditionnelle « si disponible ». Garder ?
+    en: >-
+      Haemostatic dressing: recommendation * (p.256), but IFRC advises teaching
+      it only to advanced providers or for remote areas (p.259). Included as a
+      conditional "if available" step. Keep?
+  - fr: >-
+      Branche « saignement peu abondant » (bloc light_bleeding) : construite sur
+      « même une tasse de sang peut mener à une détérioration rapide » (p.257),
+      faute de protocole « coupures et éraflures ». Confirmer ce bloc ou le
+      remplacer par une bascule vers un futur protocole.
+    en: >-
+      "Minor bleeding" branch (light_bleeding block): built on "even a cupful of
+      blood can lead to fast deterioration" (p.257), as there is no "cuts and
+      grazes" protocol yet. Confirm this block or replace it with a switch to a
+      future protocol.
+  - fr: >-
+      Objet planté sur un membre avec saignement non maîtrisé : l'arbre mène au
+      bloc garrot ; l'IFRC ne traite pas explicitement ce cas (pression autour
+      de l'objet, p.257).
+    en: >-
+      Embedded object in a limb with uncontrolled bleeding: the tree leads to
+      the tourniquet block; IFRC does not explicitly address this case (pressure
+      around the object, p.257).
+  - fr: >-
+      Protection contre le sang (VIH, hépatites) : gants, sac plastique ou tissu
+      (p.256) en première étape de chaque bloc, et interdit « mains nues ».
+      L'IFRC ajoute qu'en l'absence de tout matériel, appuyer de sa propre main
+      sans plaie ouverte est un risque très faible (p.259) : non mis en étape
+      pour ne pas contredire l'interdit. Trancher le message pour la Guinée.
+    en: >-
+      Protection from blood (HIV, hepatitis): gloves, plastic bag or cloth
+      (p.256) as the first step of every block, and a "bare hands" prohibition.
+      IFRC adds that with nothing available, pressing with one's own hand
+      without open cuts is a very low risk (p.259): not made a step so as not
+      to contradict the prohibition. Decide the message for Guinea.
+  - fr: >-
+      Choc : signes (p.389) placés en red flags sans bascule, aucun protocole
+      « état de choc » n'existe encore. Élévation des jambes de 30 à 60° (p.389)
+      non incluse, car réservée aux personnes non blessées.
+    en: >-
+      Shock: signs (p.389) placed as red flags without a switch, as no "shock"
+      protocol exists yet. Leg raising 30 to 60° (p.389) not included, as it is
+      reserved for uninjured people.
+  - fr: >-
+      Situations de conflit ou d'attaque violente : garrot en première mesure
+      « stop the bleed » et sécurité du secouriste avant tout soin (p.258) non
+      inclus.
+    en: >-
+      Conflict or violent attack situations: tourniquet as the first "stop the
+      bleed" measure and provider safety before any care (p.258) not included.
+  - fr: >-
+      Pas de variantes d'âge : l'IFRC ne différencie pas les gestes du grand
+      public. Seule mention enfant : garrot fabriqué à tourniquet (windlass)
+      utilisable (p.256), couverte par l'étape « garrot du commerce ».
+    en: >-
+      No age variants: IFRC does not differentiate lay-provider actions. Only
+      child-specific mention: a manufactured windlass tourniquet may be used
+      (p.256), covered by the "manufactured tourniquet" step.
+  - fr: >-
+      Non traduits en étape : « la pression diminue si l'on empile de plus en
+      plus de bandages » (p.259, conseil de formation) et « la pose d'un garrot
+      est très douloureuse » (p.260, formation).
+    en: >-
+      Not turned into steps: "pressure is reduced if more and more bandages are
+      applied" (p.259, facilitation tip) and "applying a tourniquet is very
+      painful" (p.260, education).
+
+# Réservé : points de contrôle caméra que le médecin rédigera. Doit rester vide.
+vision_checkpoints: []

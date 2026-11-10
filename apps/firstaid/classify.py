@@ -52,31 +52,45 @@ class ClassifierUnavailable(Exception):
 # ------------------------------------------------------------------------------
 
 ENTRY_UNCONSCIOUS = 'unconscious_breathing'  # porte d'entrée « inconscient, respiration non décrite »
+ENTRY_BLEEDING = 'severe_bleeding'           # porte d'entrée « saignement abondant ou continu »
 
 
 def _routing_rule(lang: str, ids: list[str]) -> str:
     """
     Règle de routage, générique : l'âge, la grossesse, la cause ou le lieu ne
-    changent pas le scénario. La phrase citant ENTRY_UNCONSCIOUS n'est émise que
-    si ce protocole fait partie des candidats publiables du moment.
+    changent pas le scénario. Chaque phrase citant un protocole d'entrée
+    (ENTRY_UNCONSCIOUS, ENTRY_BLEEDING) n'est émise que si ce protocole fait
+    partie des candidats publiables du moment ; les exemples de « none »
+    excluent alors la situation couverte.
     """
     entry = ENTRY_UNCONSCIOUS in ids
+    bleeding = ENTRY_BLEEDING in ids
     if lang == 'fr':
         rule = ("Règles de routage : l'âge, la grossesse, la cause (chute, malaise, accident) ou le lieu "
                 "ne changent pas le scénario ; seul compte l'état de la personne. ")
         if entry:
             rule += (f"Si la personne est inconsciente, ne réagit pas ou ne se réveille pas et que sa respiration "
                      f"n'est pas décrite, choisis {ENTRY_UNCONSCIOUS} : son parcours vérifie ensuite la respiration. ")
-        rule += ("Si la personne est consciente, ou si la situation est autre (saignement, étouffement, douleur, "
-                 "malaise sans perte de connaissance…) et qu'aucun scénario de la liste ne la décrit, réponds none.")
+        if bleeding:
+            rule += (f"Si la personne saigne abondamment ou sans arrêt (le sang coule ou gicle, « beaucoup de "
+                     f"sang »), choisis {ENTRY_BLEEDING}, quelle que soit la cause ou la partie du corps. ")
+        others = ', '.join(x for x in ('saignement' if not bleeding else '', 'étouffement', 'douleur',
+                                       'malaise sans perte de connaissance') if x)
+        rule += (f"Si la personne est consciente, ou si la situation est autre ({others}…) et qu'aucun "
+                 "scénario de la liste ne la décrit, réponds none.")
         return rule
     rule = ("Routing rules: age, pregnancy, cause (fall, faintness, accident) or location do not change the "
             "scenario; only the person's condition matters. ")
     if entry:
         rule += (f"If the person is unconscious, unresponsive or does not wake up and their breathing is not "
                  f"described, choose {ENTRY_UNCONSCIOUS}: its pathway then checks breathing. ")
-    rule += ("If the person is conscious, or the situation is something else (bleeding, choking, pain, faintness "
-             "without loss of consciousness…) and no scenario in the list describes it, answer none.")
+    if bleeding:
+        rule += (f"If the person is bleeding heavily or continuously (blood flowing or spurting, \"a lot of "
+                 f"blood\"), choose {ENTRY_BLEEDING}, whatever the cause or the body part. ")
+    others = ', '.join(x for x in ('bleeding' if not bleeding else '', 'choking', 'pain',
+                                   'faintness without loss of consciousness') if x)
+    rule += (f"If the person is conscious, or the situation is something else ({others}…) and no scenario "
+             "in the list describes it, answer none.")
     return rule
 
 

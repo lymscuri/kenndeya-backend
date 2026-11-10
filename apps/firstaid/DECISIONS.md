@@ -19,3 +19,15 @@ La phrase citant `unconscious_breathing` n'est émise que si ce protocole fait p
 candidats publiables du moment ; le reste de la règle reste vrai quand d'autres protocoles seront
 ajoutés. Motivation : le texte « ma femme est enceinte et elle ne se réveille pas » était classé
 `none` au lieu de `unconscious_breathing`.
+
+## 2026-11-10 — Entrée « saignement abondant » dans la règle de routage
+
+Même mécanique conditionnelle que pour `unconscious_breathing` : si `severe_bleeding` fait partie
+des candidats publiables, le prompt ajoute :
+
+> Si la personne saigne abondamment ou sans arrêt (le sang coule ou gicle, « beaucoup de sang »),
+> choisir `severe_bleeding`, quelle que soit la cause ou la partie du corps.
+
+et retire « saignement » des exemples de situations menant à `none`. Quand `severe_bleeding` n'est
+pas publiable, la règle reste celle du 2026-11-10 ci-dessus, « saignement » compris dans les
+exemples de `none`.

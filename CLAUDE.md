@@ -371,7 +371,11 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 - [x] `apps/firstaid/apps.py` → refus de démarrer si un protocole est invalide
 - [x] `apps/firstaid/protocols/unconscious_breathing.yaml` → brouillon non validé, bilingue, 33 étapes sourcées
 - [x] `apps/firstaid/protocols/cardiac_arrest.yaml` → brouillon non validé, bilingue, 3 variantes, RCP avec/sans insufflations, DAE
-- [x] `apps/firstaid/tests.py` → 46 tests (`manage.py test apps.firstaid`)
+- [x] `apps/firstaid/protocols/severe_bleeding.yaml` → brouillon non validé, bilingue, hémorragie externe sévère
+      (IFRC 2025 p.256-259 + choc p.388-389 ; FR 2020 p.200-203, 311-312) : pression directe, objet planté,
+      garrot seulement si pression inefficace ET membre, surveillance du choc ; red flags → unconscious_breathing /
+      cardiac_arrest ; pas de variantes d'âge ; 10 review_notes (garrot, timer, hémostatique…)
+- [x] `apps/firstaid/tests.py` → 78 tests (`manage.py test apps.firstaid`)
 - [x] `apps/firstaid/review.py` + `management/commands/firstaid_review.py` → dossier de relecture PDF
       (`python manage.py firstaid_review --out <dossier> [--lang fr|en|both]`, un PDF par protocole et par langue)
 - [x] champ YAML optionnel `review_notes: [{fr, en}]` → points à trancher par le médecin, rendus en fin de PDF
@@ -382,7 +386,8 @@ IFRC 2020 FR pour la terminologie) et signé par un médecin avant publication.
 - [x] `apps/firstaid/lang.py` → `detect_lang(text)` heuristique (fr | en | None), sans modèle
 - [x] `apps/firstaid/classify.py` → reconnaissance de scénario par Groq (`GROQ_MODEL_FAST`, HTTP direct via
       `requests`, pas de SDK). Le modèle ne fait que RECONNAÎTRE : il choisit un id parmi
-      `publishable_protocols()` + `none` (ou une clé d'option + `unclear`), en JSON strict. Toute anomalie
+      `publishable_protocols()` + `none` (ou une clé d'option + `unclear`), en JSON strict. Règle de routage conditionnelle : phrases d'entrée
+      `unconscious_breathing` / `severe_bleeding` émises seulement si le protocole est publiable (DECISIONS.md). Toute anomalie
       (JSON invalide, id hors liste, confiance hors [0,1]) → null / 0 + journal. **Aucun texte produit par le
       modèle n'est jamais renvoyé au client.** Liste vide → null sans appel. Clé absente ou réseau → 503.
 - [x] `POST classify/` et `POST answer/` dans `views.py` (AllowAny, throttle `firstaid`, aucune BDD,

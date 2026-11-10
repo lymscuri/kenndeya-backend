@@ -151,6 +151,61 @@ class _RejectMixin:
         return matching
 
 
+class SevereBleedingTests(SimpleTestCase):
+    """Le protocole severe_bleeding : structure attendue, bascules, garrot conditionnel."""
+
+    @classmethod
+    def setUpClass(cls):
+        super().setUpClass()
+        cls.p = load_protocols(REAL)['severe_bleeding']
+
+    def test_draft_bilingual_and_sourced(self):
+        p = self.p
+        self.assertEqual((p.status, p.validated_by, p.version, p.variants), ('draft_unvalidated', (), 1, {}))
+        self.assertEqual(p.sources['ifrc_2025_en'].role, 'content')
+        self.assertEqual(p.sources['ifrc_2020_fr'].role, 'terminology')
+        for b in p.action_blocks.values():
+            for st in b.all_steps():
+                self.assertEqual(st.source_page.source, 'ifrc_2025_en', f'{b.id}: {st.text.fr}')
+                self.assertIn(st.source_page.page, (256, 257, 258, 259, 388, 389))
+                for lang in LANGS:
+                    self.assertLessEqual(word_count(st.text.get(lang)), 14, st.text.get(lang))
+
+    def test_tree_abundant_embedded_limb(self):
+        q = self.p.decision_tree.questions
+        self.assertEqual(self.p.decision_tree.entry, 'q_heavy')
+        self.assertEqual(q['q_heavy'].answers['yes'].next_question, 'q_embedded')
+        self.assertEqual(q['q_heavy'].answers['no'].action_block, 'light_bleeding')
+        self.assertEqual(q['q_embedded'].answers['yes'].action_block, 'embedded_object')
+        self.assertEqual(q['q_embedded'].answers['no'].action_block, 'direct_pressure')
+        self.assertEqual(q['q_controlled'].answers['yes'].action_block, 'monitor_shock')
+        self.assertEqual(q['q_controlled'].answers['no'].next_question, 'q_limb')
+        self.assertEqual(q['q_limb'].answers['yes'].action_block, 'tourniquet_limb')
+        self.assertEqual(q['q_limb'].answers['no'].action_block, 'press_harder_other')
+        # le garrot n'est atteignable que par « pression inefficace » puis « membre »
+        reachers = [(qid, a) for qid, qq in q.items() for a, ans in qq.answers.items() if ans.action_block == 'tourniquet_limb']
+        self.assertEqual(reachers, [('q_limb', 'yes')])
+        self.assertEqual(self.p.action_blocks['direct_pressure'].next_question, 'q_controlled')
+        self.assertEqual(self.p.action_blocks['embedded_object'].next_question, 'q_controlled')
+        self.assertEqual(self.p.action_blocks['light_bleeding'].next_question, 'q_stopped')
+        timers = [st.timer_seconds for st in self.p.action_blocks['direct_pressure'].steps if st.timer_seconds]
+        self.assertEqual(timers, [300])
+
+    def test_red_flags_switch_and_do_not_from_ifrc(self):
+        switches = {f.switch_to for f in self.p.red_flags if f.switch_to}
+        self.assertEqual(switches, {'unconscious_breathing', 'cardiac_arrest'})
+        self.assertEqual(len(self.p.red_flags), 4)
+        texts = [f.text.fr for f in self.p.do_not]
+        self.assertEqual(len(texts), 6)
+        self.assertTrue(any('objet planté' in t for t in texts))
+        self.assertTrue(any('garrot' in t and 'membre' in t for t in texts))
+        self.assertTrue(any('mains nues' in t for t in texts))
+        for f in (*self.p.red_flags, *self.p.do_not):
+            self.assertEqual(f.source_page.source, 'ifrc_2025_en')
+        self.assertGreaterEqual(len(self.p.review_notes), 8)
+        self.assertTrue(any('Garrot' in n.fr for n in self.p.review_notes))
+
+
 class LoaderRejectTests(_RejectMixin, SimpleTestCase):
 
     def test_malformed_yaml_rejected_with_line(self):
@@ -314,7 +369,7 @@ class PublishableTests(SimpleTestCase):
         """Avec les réglages par défaut, aucun brouillon ne sort."""
         reg = ProtocolRegistry()
         reg.load(REAL)
-        self.assertEqual(set(reg.all_protocols()), {'unconscious_breathing', 'cardiac_arrest'})
+        self.assertEqual(set(reg.all_protocols()), {'unconscious_breathing', 'cardiac_arrest', 'severe_bleeding'})
         self.assertEqual(reg.publishable_protocols(), {})
 
     def test_publishable_only_validated_and_signed(self):
@@ -339,13 +394,13 @@ class PublishableTests(SimpleTestCase):
         """Hors production, ALLOW_DRAFTS laisse passer les brouillons complets, jamais les squelettes."""
         reg = ProtocolRegistry()
         reg.load(REAL)
-        self.assertEqual(set(reg.publishable_protocols()), {'unconscious_breathing', 'cardiac_arrest'})
+        self.assertEqual(set(reg.publishable_protocols()), {'unconscious_breathing', 'cardiac_arrest', 'severe_bleeding'})
         # un squelette (incomplete: true) reste exclu même avec ALLOW_DRAFTS
         with _TmpProtocols() as d:
             _replace_once(d / 'cardiac_arrest.yaml', 'incomplete: false', 'incomplete: true')
             reg2 = ProtocolRegistry()
             reg2.load(d)
-            self.assertEqual(set(reg2.publishable_protocols()), {'unconscious_breathing'})
+            self.assertEqual(set(reg2.publishable_protocols()), {'unconscious_breathing', 'severe_bleeding'})
 
 
 class ProductionSettingsTests(SimpleTestCase):
@@ -496,12 +551,13 @@ class ReviewCommandTests(SimpleTestCase):
         names = sorted(p.name for p in self.tmp.glob('*.pdf'))
         self.assertEqual(names, [
             'cardiac_arrest_en_v4.pdf', 'cardiac_arrest_fr_v4.pdf',
+            'severe_bleeding_en_v1.pdf', 'severe_bleeding_fr_v1.pdf',
             'unconscious_breathing_en_v3.pdf', 'unconscious_breathing_fr_v3.pdf',
         ])
         for p in self.tmp.glob('*.pdf'):
             self.assertGreater(p.stat().st_size, 5000, p.name)
             self.assertEqual(p.read_bytes()[:5], b'%PDF-', p.name)
-        self.assertIn('4 PDF', self.stdout.getvalue())
+        self.assertIn('6 PDF', self.stdout.getvalue())
 
     def test_pdf_contains_only_its_language(self):
         import re
@@ -531,7 +587,7 @@ class ReviewCommandTests(SimpleTestCase):
         try:
             call_command('firstaid_review', '--out', str(tmp), '--lang', 'fr', stdout=__import__('io').StringIO())
             self.assertEqual(sorted(p.name for p in tmp.glob('*.pdf')),
-                             ['cardiac_arrest_fr_v4.pdf', 'unconscious_breathing_fr_v3.pdf'])
+                             ['cardiac_arrest_fr_v4.pdf', 'severe_bleeding_fr_v1.pdf', 'unconscious_breathing_fr_v3.pdf'])
         finally:
             shutil.rmtree(tmp, ignore_errors=True)
 
@@ -599,8 +655,8 @@ class PublicApiTests(SimpleTestCase):
         r = self.client.get(self.LIST, {'lang': 'fr'})
         self.assertEqual(r.status_code, 200)
         body = r.json()
-        self.assertEqual(body['count'], 2)
-        self.assertEqual([x['id'] for x in body['results']], ['cardiac_arrest', 'unconscious_breathing'])
+        self.assertEqual(body['count'], 3)
+        self.assertEqual([x['id'] for x in body['results']], ['cardiac_arrest', 'severe_bleeding', 'unconscious_breathing'])
         for item in body['results']:
             self.assertEqual(set(item), {'id', 'title', 'description', 'version', 'updated_at', 'status', 'variants'})
             p = protocols[item['id']]
@@ -609,7 +665,7 @@ class PublicApiTests(SimpleTestCase):
             self.assertEqual(item['status'], 'draft_unvalidated')
             detail = self.client.get(f"{self.LIST}{item['id']}/", {'lang': 'fr'}).json()['data']
             self.assertEqual(item['status'], detail['status'])
-        self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).json()['data']['protocol_count'], 2)
+        self.assertEqual(self.client.get(self.META, {'lang': 'fr'}).json()['data']['protocol_count'], 3)
 
         for pid, p in protocols.items():
             for lang, other in (('fr', 'en'), ('en', 'fr')):
@@ -919,7 +975,30 @@ class ClassifyApiTests(_ClassifyMixin, SimpleTestCase):
                 system, _ = self.fake.calls[0]
                 self.assertIn('cardiac_arrest', system)
                 self.assertNotIn('unconscious_breathing', system, lang)   # ni candidat, ni règle de routage
+                self.assertNotIn('severe_bleeding', system, lang)         # idem pour l'entrée « saignement »
                 self.assertIn('Règles de routage' if lang == 'fr' else 'Routing rules', system)
+                self.assertIn('(saignement, ' if lang == 'fr' else '(bleeding, ', system)   # reste un exemple de none
+
+    @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
+    def test_routing_rule_names_bleeding_entry_when_publishable(self):
+        with _TmpProtocols() as d:
+            path = d / 'severe_bleeding.yaml'
+            _replace_once(path, 'status: draft_unvalidated', 'status: validated')
+            _replace_once(path, 'validated_by: []\n', SIGNATURE)
+            from .loader import registry
+            registry.load(d)                     # severe_bleeding publiable, les deux autres brouillons
+            expected = {'fr': ('choisis severe_bleeding, quelle que soit la cause ou la partie du corps', '(saignement, '),
+                        'en': ('choose severe_bleeding, whatever the cause or the body part', '(bleeding, ')}
+            for lang, (sentence, none_example) in expected.items():
+                self.fake.calls.clear()
+                r = self.classify('x', lang=lang, outputs=['{"scenario": "severe_bleeding", "confidence": 0.9}'])
+                system, _ = self.fake.calls[0]
+                self.assertIn(sentence, system)
+                self.assertNotIn(none_example, system)                  # « saignement » retiré des exemples de none
+                self.assertNotIn('unconscious_breathing', system)
+                data = r.json()['data']
+                self.assertEqual(data['scenario'], 'severe_bleeding')
+                self.assertEqual(data['protocol']['id'], 'severe_bleeding')
 
     @override_settings(FIRSTAID_ALLOW_DRAFTS=False)
     def test_no_publishable_means_no_model_call(self):
